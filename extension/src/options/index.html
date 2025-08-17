@@ -16,14 +16,14 @@
       <input type="number" id="minScore" min="0" max="100" value="20" />
     </div>
     <div class="row">
-  <label for="apiBase">API Base URL:</label>
-  <input type="text" id="apiBase" placeholder="https://your-api.example.com" />
+  <label for="apiBase">Scoring API URL:</label>
+  <input type="text" id="apiBase" placeholder="http://localhost:8080" />
 </div>
 <div class="row">
   <label for="tenantKey">Tenant Key:</label>
   <input type="text" id="tenantKey" placeholder="(optional)" />
 </div>
-<label><input type="checkbox" id="enableReporting" /> Enable “Report Suspicious”</label>
+<label><input type="checkbox" id="enableReporting" /> Enable "Report Suspicious" + Cloud Scoring</label>
 <button id="save">Save</button>
     <p id="status" class="status"></p>
   </main>

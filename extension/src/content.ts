@@ -6,27 +6,95 @@ type Settings = {
   enabled?: boolean;
   minScore?: number;
   enableReporting?: boolean;
+  apiUrl?: string;
 }
 
-let settings: Settings = { enabled: true, minScore: 20, enableReporting: false };
+type CloudScore = {
+  score: number;
+  reasons: string[];
+  label: string;
+}
 
-chrome.storage.sync.get(["enabled", "minScore", "enableReporting"], (s) => {
-  settings = { enabled: s.enabled ?? true, minScore: s.minScore ?? 20, enableReporting: s.enableReporting ?? false };
+let settings: Settings = { enabled: true, minScore: 20, enableReporting: false, apiUrl: 'http://localhost:8080' };
+
+chrome.storage.sync.get(["enabled", "minScore", "enableReporting", "apiUrl"], (s) => {
+  settings = { 
+    enabled: s.enabled ?? true, 
+    minScore: s.minScore ?? 20, 
+    enableReporting: s.enableReporting ?? false,
+    apiUrl: s.apiUrl ?? 'http://localhost:8080'
+  };
   scanAllLinks();
 });
 
-function evaluateLink(a: HTMLAnchorElement) {
+async function getCloudScore(url: string, linkText: string | null): Promise<CloudScore | null> {
+  try {
+    const response = await fetch(`${settings.apiUrl}/score`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ url, linkText }),
+    });
+    
+    if (!response.ok) {
+      console.warn('Cloud scoring failed:', response.statusText);
+      return null;
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.warn('Cloud scoring error:', error);
+    return null;
+  }
+}
+
+function combineScores(localScore: any, cloudScore: CloudScore | null) {
+  if (!cloudScore) return localScore;
+  
+  // Take the maximum score from both sources
+  const combinedScore = Math.max(localScore.score, cloudScore.score);
+  
+  // Combine reasons from both sources, removing duplicates
+  const allReasons = [...localScore.reasons];
+  cloudScore.reasons.forEach(reason => {
+    if (!allReasons.includes(reason)) {
+      allReasons.push(`[Cloud] ${reason}`);
+    }
+  });
+  
+  // Determine label based on combined score
+  const label = combinedScore >= 50 ? "High Risk" : combinedScore >= 20 ? "Caution" : "Safe";
+  
+  return {
+    score: combinedScore,
+    reasons: allReasons,
+    label,
+    hasCloudScore: true
+  };
+}
+
+async function evaluateLink(a: HTMLAnchorElement) {
   if (!settings.enabled) return;
   const href = a.getAttribute("href");
   if (!href || href.startsWith("#") || href.startsWith("mailto:")) return;
 
   const text = a.textContent?.trim() || null;
-  const result = scoreUrl(href, text);
-  if (result.score >= (settings.minScore || 20)) {
+  const localResult = scoreUrl(href, text);
+  
+  let finalResult = localResult;
+  
+  // If reporting is enabled, get cloud score and combine
+  if (settings.enableReporting) {
+    const cloudResult = await getCloudScore(href, text);
+    finalResult = combineScores(localResult, cloudResult);
+  }
+  
+  if (finalResult.score >= (settings.minScore || 20)) {
     if (settings.enableReporting) {
-      attachBadgeWithReport(a, result.label, result.reasons);
+      attachBadgeWithReport(a, finalResult.label, finalResult.reasons);
     } else {
-      attachBadge(a, result.label, result.reasons);
+      attachBadge(a, finalResult.label, finalResult.reasons);
     }
   }
 }
