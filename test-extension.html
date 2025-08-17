@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PhishGuard Lite - Extension Test Page</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .high-risk { border-left: 5px solid #ff4444; background-color: #fff5f5; }
+        .caution { border-left: 5px solid #ffaa00; background-color: #fffbf0; }
+        .safe { border-left: 5px solid #44ff44; background-color: #f0fff0; }
+        .url { font-family: monospace; background: #f5f5f5; padding: 5px; border-radius: 3px; }
+        .score { font-weight: bold; }
+        .high-risk .score { color: #ff4444; }
+        .caution .score { color: #ffaa00; }
+        .safe .score { color: #44ff44; }
+    </style>
+</head>
+<body>
+    <h1>🧪 PhishGuard Lite Extension Test Page</h1>
+    <p>This page contains various URLs to test your extension's phishing detection capabilities.</p>
+    
+    <div class="test-section high-risk">
+        <h2>🔴 High Risk URLs (Expected Score ≥50)</h2>
+        <p><strong>High-risk TLDs:</strong></p>
+        <ul>
+            <li><a href="https://example.gq" class="url">https://example.gq</a> - .gq TLD</li>
+            <li><a href="https://login.cf" class="url">https://login.cf</a> - .cf TLD</li>
+            <li><a href="https://bank.tk" class="url">https://bank.tk</a> - .tk TLD</li>
+        </ul>
+    </div>
+
+    <div class="test-section caution">
+        <h2>🟡 Caution URLs (Expected Score 20-49)</h2>
+        <p><strong>URL Shorteners:</strong></p>
+        <ul>
+            <li><a href="https://bit.ly/abc123" class="url">https://bit.ly/abc123</a> - Bit.ly shortener</li>
+            <li><a href="https://t.co/xyz" class="url">https://t.co/xyz</a> - Twitter shortener</li>
+        </ul>
+        <p><strong>Long URLs:</strong></p>
+        <ul>
+            <li><a href="https://example.com/very-long-path-that-exceeds-150-characters-to-trigger-the-scoring-algorithm-and-show-how-the-extension-detects-suspiciously-long-urls-that-might-be-used-for-phishing-attacks" class="url">Very long URL path</a></li>
+        </ul>
+        <p><strong>Email obfuscation:</strong></p>
+        <ul>
+            <li><a href="https://example.com/login@secure-bank" class="url">https://example.com/login@secure-bank</a> - Contains @ in path</li>
+        </ul>
+    </div>
+
+    <div class="test-section safe">
+        <h2>🟢 Safe URLs (Expected Score 0-19)</h2>
+        <ul>
+            <li><a href="https://google.com" class="url">https://google.com</a> - Standard domain</li>
+            <li><a href="https://github.com" class="url">https://github.com</a> - Standard domain</li>
+            <li><a href="https://example.org" class="url">https://example.org</a> - Standard TLD</li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h2>📋 Testing Instructions</h2>
+        <ol>
+            <li>Make sure the PhishGuard Lite extension is loaded in your browser</li>
+            <li>Click on different URLs above to test the extension</li>
+            <li>Check the extension icon for security status</li>
+            <li>Look at the browser console for extension logs</li>
+            <li>Try visiting the URLs directly to see real-time scoring</li>
+        </ol>
+    </div>
+
+    <div class="test-section">
+        <h2>🔍 What to Look For</h2>
+        <ul>
+            <li><strong>Extension Icon:</strong> Should change color/status based on URL risk</li>
+            <li><strong>Console Logs:</strong> Look for scoring information and risk factors</li>
+            <li><strong>Page Analysis:</strong> Extension should analyze the current page</li>
+            <li><strong>Link Analysis:</strong> Hover over links to see if they're analyzed</li>
+        </ul>
+    </div>
+</body>
+</html>
