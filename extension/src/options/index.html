@@ -1,0 +1,32 @@
+<!-- src/options/index.html -->
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PhishGuard Lite — Options</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <main>
+    <h1>PhishGuard Lite — Settings</h1>
+    <label><input type="checkbox" id="enabled" /> Enable detection</label>
+    <div class="row">
+      <label for="minScore">Minimum score to flag:</label>
+      <input type="number" id="minScore" min="0" max="100" value="20" />
+    </div>
+    <div class="row">
+  <label for="apiBase">API Base URL:</label>
+  <input type="text" id="apiBase" placeholder="https://your-api.example.com" />
+</div>
+<div class="row">
+  <label for="tenantKey">Tenant Key:</label>
+  <input type="text" id="tenantKey" placeholder="(optional)" />
+</div>
+<label><input type="checkbox" id="enableReporting" /> Enable “Report Suspicious”</label>
+<button id="save">Save</button>
+    <p id="status" class="status"></p>
+  </main>
+  <script type="module" src="./index.ts"></script>
+</body>
+</html>

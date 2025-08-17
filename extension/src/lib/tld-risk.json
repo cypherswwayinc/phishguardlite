@@ -1,0 +1,16 @@
+{
+  "bad_tlds": [
+    "zip",
+    "mov",
+    "gq",
+    "cf",
+    "tk",
+    "ml",
+    "ga",
+    "loan",
+    "click",
+    "country",
+    "uno",
+    "quest"
+  ]
+}
