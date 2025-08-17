@@ -11,7 +11,7 @@ function load() {
   chrome.storage.sync.get(["enabled", "minScore", "apiUrl", "tenantKey", "enableReporting"], (s) => {
     enabledEl.checked = s.enabled ?? true;
     minScoreEl.value = String(s.minScore ?? 20);
-    apiUrlEl.value = s.apiUrl ?? "http://localhost:8080";
+    apiUrlEl.value = s.apiUrl ?? "https://ysnpbaet5e.execute-api.us-east-1.amazonaws.com/Prod";
     tenantKeyEl.value = s.tenantKey ?? "";
     enableReportingEl.checked = s.enableReporting ?? false;
   });
@@ -21,7 +21,7 @@ function save() {
   const payload = {
     enabled: enabledEl.checked,
     minScore: Number(minScoreEl.value || 20),
-    apiUrl: apiUrlEl.value.trim() || "http://localhost:8080",
+    apiUrl: apiUrlEl.value.trim() || "https://ysnpbaet5e.execute-api.us-east-1.amazonaws.com/Prod",
     tenantKey: tenantKeyEl.value.trim(),
     enableReporting: enableReportingEl.checked,
   };

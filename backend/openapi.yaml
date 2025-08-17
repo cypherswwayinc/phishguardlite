@@ -1,0 +1,24 @@
+openapi: 3.0.1
+info:
+  title: PhishGuard API
+  version: 1.0.0
+paths:
+  /health:
+    get:
+      x-amazon-apigateway-integration:
+        uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${PhishGuardAPI.Arn}/invocations"
+        passthroughBehavior: when_no_match
+        httpMethod: POST
+        type: aws_proxy
+      x-amazon-apigateway-any-method:
+        x-amazon-apigateway-auth:
+          x-amazon-apigateway-api-key-auth: false
+  /{proxy+}:
+    x-amazon-apigateway-any-method:
+      x-amazon-apigateway-integration:
+        uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${PhishGuardAPI.Arn}/invocations"
+        passthroughBehavior: when_no_match
+        httpMethod: POST
+        type: aws_proxy
+      x-amazon-apigateway-auth:
+        x-amazon-apigateway-api-key-auth: false

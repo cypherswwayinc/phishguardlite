@@ -1,0 +1,39 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: PhishGuard Lite Backend - Lambda function for phishing detection and reporting
+
+Globals:
+  Function:
+    Timeout: 30
+    Runtime: python3.9
+    Environment:
+      Variables:
+        REPORTS_BUCKET: "pg-reports-235494818808-us-east-1"
+
+Resources:
+  # Main API Lambda Function
+  PhishGuardAPI:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: app.lambda_handler
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /{proxy+}
+            Method: ANY
+      Policies:
+        - S3CrudPolicy:
+            BucketName: "pg-reports-235494818808-us-east-1"
+      Environment:
+        Variables:
+          REPORTS_BUCKET: "pg-reports-235494818808-us-east-1"
+
+Outputs:
+  PhishGuardAPI:
+    Description: "PhishGuard API Gateway endpoint URL"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
+  PhishGuardReportsBucket:
+    Description: "S3 Bucket for PhishGuard reports (existing)"
+    Value: "pg-reports-235494818808-us-east-1"

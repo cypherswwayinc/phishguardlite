@@ -8,8 +8,9 @@ import re
 
 app = FastAPI(title="PhishGuard Lite Backend", version="0.1.0")
 
-REPORTS_DIR = Path(__file__).parent / "reports"
-REPORTS_DIR.mkdir(exist_ok=True)
+# Remove local file system operations for Lambda compatibility
+# REPORTS_DIR = Path(__file__).parent / "reports"
+# REPORTS_DIR.mkdir(exist_ok=True)
 
 BAD_TLDS = {"zip","mov","gq","cf","tk","ml","ga","loan","click","country","uno","quest"}
 SHORTENERS = {"bit.ly","t.co","tinyurl.com","goo.gl","is.gd","ow.ly","buff.ly","cutt.ly","rebrand.ly"}
@@ -102,12 +103,9 @@ def score_endpoint(req: ScoreRequest):
 
 @app.post("/report")
 def report_endpoint(req: ReportRequest):
-    # In production, store to S3 or a database. For now, write to local JSON.
-    now = datetime.utcnow().strftime("%Y%m%d-%H%M%S-%f")
-    out = REPORTS_DIR / f"report-{now}.json"
-    data = {"url": str(req.url), "context": req.context, "tenantKey": req.tenantKey, "receivedAt": datetime.utcnow().isoformat() + "Z"}
-    out.write_text(json.dumps(data, indent=2))
-    return {"ok": True, "path": str(out)}
+    # In production, store to S3. For now, just return success.
+    # TODO: Implement S3 storage
+    return {"ok": True, "message": "Report received (S3 storage not yet implemented)"}
 
 # --- Admin Dashboard APIs & Static ---
 from fastapi.responses import FileResponse, JSONResponse
@@ -126,8 +124,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-ADMIN_DIST = Path(__file__).parent / "admin" / "dist"
-REPORTS_DIR = Path(__file__).parent / "reports"
+# Remove local file system dependencies for Lambda
+# ADMIN_DIST = Path(__file__).parent / "admin" / "dist"
+# REPORTS_DIR = Path(__file__).parent / "reports"
 
 def _safe_child(base: Path, name: str) -> Path:
     p = (base / name).resolve()
@@ -137,55 +136,37 @@ def _safe_child(base: Path, name: str) -> Path:
 
 @app.get("/admin/api/reports")
 def admin_list_reports(limit: int = 200):
-    items = []
-    for fp in sorted(REPORTS_DIR.glob("report-*.json"), reverse=True):
-        try:
-            data = json.loads(fp.read_text())
-            items.append({
-                "name": fp.name,
-                "receivedAt": data.get("receivedAt"),
-                "url": data.get("url"),
-                "tenantKey": data.get("tenantKey"),
-                "reasons": (data.get("context", {}) or {}).get("reasons", []),
-                "pageUrl": (data.get("context", {}) or {}).get("pageUrl"),
-            })
-        except Exception:
-            continue
-        if len(items) >= limit:
-            break
-    return {"items": items}
+    # TODO: Implement S3 listing
+    return {"items": [], "message": "S3 integration not yet implemented"}
 
 @app.get("/admin/api/report/{name}")
 def admin_get_report(name: str):
-    if not name.startswith("report-") or not name.endswith(".json"):
-        raise HTTPException(status_code=400, detail="Invalid report name")
-    fp = _safe_child(REPORTS_DIR, name)
-    if not fp.exists():
-        raise HTTPException(status_code=404, detail="Not found")
-    return JSONResponse(json.loads(fp.read_text()))
+    # TODO: Implement S3 retrieval
+    raise HTTPException(status_code=501, detail="S3 integration not yet implemented")
 
 @app.get("/admin/api/digests")
 def admin_list_digests(limit: int = 200):
-    items = []
-    for fp in sorted(REPORTS_DIR.glob("weekly_digest_*.html"), reverse=True):
-        try:
-            mtime = _dt.datetime.utcfromtimestamp(fp.stat().st_mtime).isoformat() + "Z"
-            items.append({"name": fp.name, "updatedAt": mtime})
-        except Exception:
-            continue
-        if len(items) >= limit:
-            break
-    return {"items": items}
+    # TODO: Implement S3 listing
+    return {"items": [], "message": "S3 integration not yet implemented"}
 
 @app.get("/admin/api/digest/{name}")
 def admin_get_digest(name: str):
-    if not (name.startswith("weekly_digest_") and name.endswith(".html")):
-        raise HTTPException(status_code=400, detail="Invalid digest name")
-    fp = _safe_child(REPORTS_DIR, name)
-    if not fp.exists():
-        raise HTTPException(status_code=404, detail="Not found")
-    return FileResponse(str(fp), media_type="text/html")
+    # TODO: Implement S3 retrieval
+    raise HTTPException(status_code=501, detail="S3 integration not yet implemented")
 
-# Mount the static dashboard if built
-if ADMIN_DIST.exists():
-    app.mount("/admin", StaticFiles(directory=str(ADMIN_DIST), html=True), name="admin")
+# Remove static file mounting for Lambda compatibility
+# if ADMIN_DIST.exists():
+#     app.mount("/admin", StaticFiles(directory=str(ADMIN_DIST), html=True), name="admin")
+
+# Lambda handler for AWS SAM deployment
+def lambda_handler(event, context):
+    """AWS Lambda handler for the FastAPI application"""
+    from mangum import Mangum
+    
+    # Create Mangum adapter for FastAPI
+    adapter = Mangum(app)
+    
+    # Handle the Lambda event
+    response = adapter(event, context)
+    
+    return response
