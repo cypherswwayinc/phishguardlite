@@ -18,6 +18,11 @@ Resources:
       CodeUri: .
       Handler: app.lambda_handler
       Events:
+        RootApi:
+          Type: Api
+          Properties:
+            Path: /
+            Method: ANY
         Api:
           Type: Api
           Properties:

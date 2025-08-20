@@ -22,3 +22,4 @@ paths:
         type: aws_proxy
       x-amazon-apigateway-auth:
         x-amazon-apigateway-api-key-auth: false
+

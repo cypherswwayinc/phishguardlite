@@ -3,79 +3,110 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PhishGuard Lite - Extension Test Page</title>
+    <title>PhishGuard Lite - Extension Test</title>
     <style>
-        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
-        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
-        .high-risk { border-left: 5px solid #ff4444; background-color: #fff5f5; }
-        .caution { border-left: 5px solid #ffaa00; background-color: #fffbf0; }
-        .safe { border-left: 5px solid #44ff44; background-color: #f0fff0; }
-        .url { font-family: monospace; background: #f5f5f5; padding: 5px; border-radius: 3px; }
-        .score { font-weight: bold; }
-        .high-risk .score { color: #ff4444; }
-        .caution .score { color: #ffaa00; }
-        .safe .score { color: #44ff44; }
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .safe { border-left: 4px solid #28a745; }
+        .caution { border-left: 4px solid #ffc107; }
+        .high-risk { border-left: 4px solid #dc3545; }
+        .url {
+            color: #007bff;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+        .url:hover {
+            color: #0056b3;
+        }
+        .note {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 3px;
+            margin: 10px 0;
+        }
     </style>
 </head>
 <body>
-    <h1>🧪 PhishGuard Lite Extension Test Page</h1>
-    <p>This page contains various URLs to test your extension's phishing detection capabilities.</p>
+    <h1>🧭 PhishGuard Lite - Extension Test Page</h1>
     
-    <div class="test-section high-risk">
-        <h2>🔴 High Risk URLs (Expected Score ≥50)</h2>
-        <p><strong>High-risk TLDs:</strong></p>
+    <div class="note">
+        <strong>Note:</strong> This page is designed to test the PhishGuard Lite browser extension. 
+        Install the extension and navigate to this page to see phishing detection in action.
+    </div>
+
+    <div class="test-section safe">
+        <h3>✅ Safe Links (Should show low/no risk)</h3>
+        <p>Here are some safe links to test:</p>
         <ul>
-            <li><a href="https://example.gq" class="url">https://example.gq</a> - .gq TLD</li>
-            <li><a href="https://login.cf" class="url">https://login.cf</a> - .cf TLD</li>
-            <li><a href="https://bank.tk" class="url">https://bank.tk</a> - .tk TLD</li>
+            <li><a href="https://google.com" class="url">https://google.com</a> - Google Search</li>
+            <li><a href="https://github.com" class="url">https://github.com</a> - GitHub</li>
+            <li><a href="https://stackoverflow.com" class="url">https://stackoverflow.com</a> - Stack Overflow</li>
         </ul>
     </div>
 
     <div class="test-section caution">
-        <h2>🟡 Caution URLs (Expected Score 20-49)</h2>
-        <p><strong>URL Shorteners:</strong></p>
+        <h3>⚠️ Caution Links (Should show medium risk)</h3>
+        <p>These links have some suspicious characteristics:</p>
         <ul>
-            <li><a href="https://bit.ly/abc123" class="url">https://bit.ly/abc123</a> - Bit.ly shortener</li>
-            <li><a href="https://t.co/xyz" class="url">https://t.co/xyz</a> - Twitter shortener</li>
-        </ul>
-        <p><strong>Long URLs:</strong></p>
-        <ul>
-            <li><a href="https://example.com/very-long-path-that-exceeds-150-characters-to-trigger-the-scoring-algorithm-and-show-how-the-extension-detects-suspiciously-long-urls-that-might-be-used-for-phishing-attacks" class="url">Very long URL path</a></li>
-        </ul>
-        <p><strong>Email obfuscation:</strong></p>
-        <ul>
-            <li><a href="https://example.com/login@secure-bank" class="url">https://example.com/login@secure-bank</a> - Contains @ in path</li>
+            <li><a href="https://bit.ly/suspicious" class="url">https://bit.ly/suspicious</a> - URL shortener</li>
+            <li><a href="https://example.com/very/long/path/with/many/parameters?param1=value1&param2=value2&param3=value3&param4=value4&param5=value5" class="url">Very long URL with many parameters</a></li>
+            <li><a href="https://google.com" class="url">PayPal - Click to verify your account</a> - Domain mismatch</li>
         </ul>
     </div>
 
-    <div class="test-section safe">
-        <h2>🟢 Safe URLs (Expected Score 0-19)</h2>
+    <div class="test-section high-risk">
+        <h3>🚨 High Risk Links (Should show high risk)</h3>
+        <p>These links have multiple suspicious characteristics:</p>
         <ul>
-            <li><a href="https://google.com" class="url">https://google.com</a> - Standard domain</li>
-            <li><a href="https://github.com" class="url">https://github.com</a> - Standard domain</li>
-            <li><a href="https://example.org" class="url">https://example.org</a> - Standard TLD</li>
+            <li><a href="https://suspicious-site.gq" class="url">https://suspicious-site.gq</a> - High-risk TLD</li>
+            <li><a href="https://malicious-site.cf/login@fake-bank.com" class="url">https://malicious-site.cf/login@fake-bank.com</a> - High-risk TLD + @ symbol</li>
+            <li><a href="https://bit.ly/very-suspicious.gq" class="url">https://bit.ly/very-suspicious.gq</a> - URL shortener + high-risk TLD</li>
         </ul>
     </div>
 
     <div class="test-section">
-        <h2>📋 Testing Instructions</h2>
-        <ol>
-            <li>Make sure the PhishGuard Lite extension is loaded in your browser</li>
-            <li>Click on different URLs above to test the extension</li>
-            <li>Check the extension icon for security status</li>
-            <li>Look at the browser console for extension logs</li>
-            <li>Try visiting the URLs directly to see real-time scoring</li>
-        </ol>
+        <h3>📧 Email-like Content</h3>
+        <p>Simulating email content with suspicious links:</p>
+        <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px;">
+            <p><strong>From:</strong> security@paypal.com</p>
+            <p><strong>Subject:</strong> Your account has been suspended</p>
+            <p>Dear valued customer,</p>
+            <p>We have detected suspicious activity on your account. Please click the link below to verify your identity:</p>
+            <p><a href="https://paypal-verify.gq/account/secure" class="url">https://paypal-verify.gq/account/secure</a></p>
+            <p>If you don't verify within 24 hours, your account will be permanently suspended.</p>
+            <p>Best regards,<br>PayPal Security Team</p>
+        </div>
     </div>
 
-    <div class="test-section">
-        <h2>🔍 What to Look For</h2>
+    <div class="note">
+        <strong>Extension Features to Test:</strong>
         <ul>
-            <li><strong>Extension Icon:</strong> Should change color/status based on URL risk</li>
-            <li><strong>Console Logs:</strong> Look for scoring information and risk factors</li>
-            <li><strong>Page Analysis:</strong> Extension should analyze the current page</li>
-            <li><strong>Link Analysis:</strong> Hover over links to see if they're analyzed</li>
+            <li>Inline risk labels next to suspicious links</li>
+            <li>Color-coded risk indicators (green=safe, yellow=caution, red=high-risk)</li>
+            <li>Detailed risk explanations</li>
+            <li>Real-time scoring using the PhishGuard API</li>
         </ul>
     </div>
+
+    <script>
+        // Add click handlers to demonstrate the links
+        document.querySelectorAll('.url').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                alert('Link clicked: ' + this.href + '\n\nThis is a test page. In a real scenario, the PhishGuard extension would analyze this link and show risk indicators.');
+            });
+        });
+    </script>
 </body>
 </html>

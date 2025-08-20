@@ -15,20 +15,34 @@ type CloudScore = {
   label: string;
 }
 
-let settings: Settings = { enabled: true, minScore: 20, enableReporting: false, apiUrl: 'http://localhost:8080' };
+let settings: Settings = { enabled: true, minScore: 20, enableReporting: false, apiUrl: 'https://ysnpbaet5e.execute-api.us-east-1.amazonaws.com/Prod' };
 
 chrome.storage.sync.get(["enabled", "minScore", "enableReporting", "apiUrl"], (s) => {
   settings = { 
     enabled: s.enabled ?? true, 
     minScore: s.minScore ?? 20, 
     enableReporting: s.enableReporting ?? false,
-    apiUrl: s.apiUrl ?? 'http://localhost:8080'
+    apiUrl: s.apiUrl ?? 'https://ysnpbaet5e.execute-api.us-east-1.amazonaws.com/Prod'
   };
   scanAllLinks();
 });
 
 async function getCloudScore(url: string, linkText: string | null): Promise<CloudScore | null> {
   try {
+    // Validate URL before sending to API
+    if (!url || url.trim() === '' || url.startsWith('#') || url.startsWith('mailto:') || url.startsWith('javascript:')) {
+      console.log('Skipping invalid URL for cloud scoring:', url);
+      return null;
+    }
+    
+    // Try to construct a valid URL object to ensure it's well-formed
+    try {
+      new URL(url);
+    } catch (e) {
+      console.log('Malformed URL, skipping cloud scoring:', url);
+      return null;
+    }
+    
     const response = await fetch(`${settings.apiUrl}/score`, {
       method: 'POST',
       headers: {
@@ -38,7 +52,7 @@ async function getCloudScore(url: string, linkText: string | null): Promise<Clou
     });
     
     if (!response.ok) {
-      console.warn('Cloud scoring failed:', response.statusText);
+      console.warn('Cloud scoring failed:', response.status, response.statusText);
       return null;
     }
     

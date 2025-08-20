@@ -1,6 +1,9 @@
 
 import React, { useEffect, useMemo, useState } from 'react'
 
+// Cloud API configuration
+const API_BASE_URL = 'https://ysnpbaet5e.execute-api.us-east-1.amazonaws.com/Prod'
+
 type Report = {
   name: string
   receivedAt?: string
@@ -19,7 +22,9 @@ function useFetch<T>(path: string, deps: any[] = []) {
   useEffect(() => {
     let alive = true
     setLoading(true)
-    fetch(path).then(r => r.json()).then(d => {
+    // Use full API URL instead of relative path
+    const fullUrl = path.startsWith('http') ? path : `${API_BASE_URL}${path}`
+    fetch(fullUrl).then(r => r.json()).then(d => {
       if (!alive) return
       setData(d)
       setLoading(false)

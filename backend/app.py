@@ -90,6 +90,20 @@ def score_url(u: str, link_text: Optional[str]) -> ScoreResponse:
     label = "High Risk" if score >= 50 else ("Caution" if score >= 20 else "Safe")
     return ScoreResponse(score=score, reasons=reasons, label=label)
 
+@app.get("/")
+def root():
+    return {
+        "message": "PhishGuard Lite Backend API",
+        "version": "1.0.0",
+        "endpoints": {
+            "health": "/health",
+            "score": "/score",
+            "report": "/report",
+            "admin": "/admin/api/*"
+        },
+        "status": "running"
+    }
+
 @app.get("/health")
 def health():
     return {"ok": True, "time": datetime.utcnow().isoformat() + "Z"}
