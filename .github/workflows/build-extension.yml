@@ -15,29 +15,29 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: |
-            extension/package-lock.json
-            extension/package.json
-            
+          cache-dependency-path: extension/package-lock.json
+          
       - name: Install dependencies
         working-directory: extension
         run: |
-          npm ci --prefer-offline --no-audit
+          echo "Current directory: $(pwd)"
+          echo "Files in current directory:"
+          ls -la
+          echo "Installing dependencies..."
+          npm ci
           
       - name: Build extension
         working-directory: extension
         run: |
+          echo "Building extension..."
           npm run build
           
       - name: Copy required files
         working-directory: extension
         run: |
+          echo "Copying required files to dist..."
           cp manifest.json dist/
           cp src/options/index.html dist/
-          
-      - name: List dist contents
-        working-directory: extension
-        run: |
           echo "Dist directory contents:"
           ls -la dist/
           
