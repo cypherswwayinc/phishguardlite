@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "PhishGuard Lite",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Inline phishing risk labels and one-click reporting. Local heuristics; report only on user action.",
   "action": {
     "default_title": "PhishGuard Lite"
