@@ -14,7 +14,7 @@
 
 ---
 
-## 🏗️ **System Overview**
+## **System Overview**
 
 PhishGuard Lite is a comprehensive phishing detection system deployed on AWS with the following architecture:
 
@@ -71,7 +71,7 @@ PhishGuard Lite is a comprehensive phishing detection system deployed on AWS wit
 
 ---
 
-## ☁️ **AWS Infrastructure**
+##  **AWS Infrastructure**
 
 ### **Deployed Resources**
 
@@ -120,7 +120,7 @@ AWS_REGION=us-east-1  # Reserved variable, auto-set
 
 ---
 
-## 👥 **User Roles & Permissions**
+## **User Roles & Permissions**
 
 ### **End Users (Browser Extension)**
 - **Permissions**: Read web page content, access extension storage
@@ -153,7 +153,7 @@ AWS_REGION=us-east-1  # Reserved variable, auto-set
 
 ---
 
-## 🔌 **API Reference**
+## **API Reference**
 
 ### **Base URL**
 ```
@@ -298,7 +298,7 @@ GET /admin/api/report/{report_id}
 
 ---
 
-## 👤 **User Guide**
+## **User Guide**
 
 ### **Installing the Browser Extension**
 
@@ -321,9 +321,9 @@ npm run build
 #### **Basic Phishing Detection**
 - The extension automatically scans URLs on web pages
 - Risk scores appear next to links:
-  - 🟢 **Low Risk** (0-30): Safe to visit
-  - 🟡 **Medium Risk** (31-70): Exercise caution
-  - 🔴 **High Risk** (71-100): Avoid visiting
+  - **Low Risk** (0-30): Safe to visit
+  - **Medium Risk** (31-70): Exercise caution
+  - **High Risk** (71-100): Avoid visiting
 
 #### **Reporting Suspicious URLs**
 1. Click the **Report** button next to any suspicious link
@@ -349,7 +349,7 @@ npm run build
 
 ---
 
-## 👨‍💼 **Admin Guide**
+## **Admin Guide**
 
 ### **Accessing the Admin Dashboard**
 
@@ -408,7 +408,7 @@ python -m http.server 8001
 
 ---
 
-## 🚀 **Development Guide**
+## **Development Guide**
 
 ### **Local Development Setup**
 
@@ -507,7 +507,7 @@ curl https://ysnpbaet5e.execute-api.us-east-1.amazonaws.com/Prod/health
 
 ---
 
-## 🚀 **Deployment Guide**
+## **Deployment Guide**
 
 ### **AWS Deployment**
 
@@ -679,7 +679,7 @@ aws logs filter-log-events --log-group-name /aws/lambda/phishguard-lite-backend-
 
 ---
 
-## 🔒 **Security Considerations**
+## **Security Considerations**
 
 ### **Data Protection**
 - All data encrypted at rest (S3 SSE-S3)
@@ -723,7 +723,7 @@ aws logs filter-log-events --log-group-name /aws/lambda/phishguard-lite-backend-
 
 ---
 
-## 📞 **Support & Resources**
+## **Support & Resources**
 
 ### **Documentation Links**
 - **This Document**: `TECHNICAL_DOCUMENTATION.md`
@@ -753,12 +753,12 @@ aws logs filter-log-events --log-group-name /aws/lambda/phishguard-lite-backend-
 ## 📝 **Changelog**
 
 ### **Version 1.0.0 (Current)**
-- ✅ Complete system deployment
-- ✅ AWS Lambda + API Gateway integration
-- ✅ S3 storage for reports
-- ✅ Admin dashboard
-- ✅ Browser extension with reporting
-- ✅ Comprehensive documentation
+- Complete system deployment
+- AWS Lambda + API Gateway integration
+- S3 storage for reports
+- Admin dashboard
+- Browser extension with reporting
+- Comprehensive documentation
 
 ### **Planned Versions**
 - **v1.1.0**: Authentication and rate limiting
@@ -774,4 +774,4 @@ aws logs filter-log-events --log-group-name /aws/lambda/phishguard-lite-backend-
 
 ---
 
-**PhishGuard Lite** - Complete technical documentation for the phishing detection system. 🛡️
+**PhishGuard Lite** - Complete technical documentation for the phishing detection system. 
