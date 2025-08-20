@@ -5,12 +5,38 @@ from datetime import datetime
 import json
 from pathlib import Path
 import re
+import uuid
 
 app = FastAPI(title="PhishGuard Lite Backend", version="0.1.0")
 
-# Remove local file system operations for Lambda compatibility
-# REPORTS_DIR = Path(__file__).parent / "reports"
-# REPORTS_DIR.mkdir(exist_ok=True)
+# In-memory storage for reports (in production, this would be S3/DynamoDB)
+REPORTS_STORAGE = []
+REPORTS_FILE = Path(__file__).parent / "reports" / "reports.json"
+
+# Ensure reports directory exists
+REPORTS_FILE.parent.mkdir(exist_ok=True)
+
+def load_reports():
+    """Load reports from JSON file"""
+    global REPORTS_STORAGE
+    try:
+        if REPORTS_FILE.exists():
+            with open(REPORTS_FILE, 'r') as f:
+                REPORTS_STORAGE = json.load(f)
+    except Exception as e:
+        print(f"Error loading reports: {e}")
+        REPORTS_STORAGE = []
+
+def save_reports():
+    """Save reports to JSON file"""
+    try:
+        with open(REPORTS_FILE, 'w') as f:
+            json.dump(REPORTS_STORAGE, f, indent=2)
+    except Exception as e:
+        print(f"Error saving reports: {e}")
+
+# Load existing reports on startup
+load_reports()
 
 BAD_TLDS = {"zip","mov","gq","cf","tk","ml","ga","loan","click","country","uno","quest"}
 SHORTENERS = {"bit.ly","t.co","tinyurl.com","goo.gl","is.gd","ow.ly","buff.ly","cutt.ly","rebrand.ly"}
@@ -28,6 +54,11 @@ class ReportRequest(BaseModel):
     url: HttpUrl
     context: dict
     tenantKey: Optional[str] = None
+
+class ReportResponse(BaseModel):
+    ok: bool
+    message: str
+    reportId: Optional[str] = None
 
 def get_hostname(u: str) -> str:
     # Basic extraction
@@ -115,11 +146,41 @@ def score_endpoint(req: ScoreRequest):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@app.post("/report")
+@app.post("/report", response_model=ReportResponse)
 def report_endpoint(req: ReportRequest):
-    # In production, store to S3. For now, just return success.
-    # TODO: Implement S3 storage
-    return {"ok": True, "message": "Report received (S3 storage not yet implemented)"}
+    try:
+        # Create a unique report ID
+        report_id = str(uuid.uuid4())
+        
+        # Create report object
+        report = {
+            "id": report_id,
+            "url": str(req.url),
+            "tenantKey": req.tenantKey,
+            "context": req.context,
+            "reportedAt": datetime.utcnow().isoformat() + "Z",
+            "status": "new"
+        }
+        
+        # Add to storage
+        REPORTS_STORAGE.append(report)
+        
+        # Save to file
+        save_reports()
+        
+        print(f"Report received: {report_id} for URL: {req.url}")
+        
+        return ReportResponse(
+            ok=True, 
+            message=f"Report received and stored successfully. Report ID: {report_id}",
+            reportId=report_id
+        )
+    except Exception as e:
+        print(f"Error storing report: {e}")
+        return ReportResponse(
+            ok=False, 
+            message=f"Error storing report: {str(e)}"
+        )
 
 # --- Admin Dashboard APIs & Static ---
 from fastapi.responses import FileResponse, JSONResponse
@@ -138,39 +199,54 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Remove local file system dependencies for Lambda
-# ADMIN_DIST = Path(__file__).parent / "admin" / "dist"
-# REPORTS_DIR = Path(__file__).parent / "reports"
-
-def _safe_child(base: Path, name: str) -> Path:
-    p = (base / name).resolve()
-    if not str(p).startswith(str(base.resolve())):
-        raise HTTPException(status_code=400, detail="Invalid path")
-    return p
-
 @app.get("/admin/api/reports")
 def admin_list_reports(limit: int = 200):
-    # TODO: Implement S3 listing
-    return {"items": [], "message": "S3 integration not yet implemented"}
+    """List all reports with optional filtering"""
+    try:
+        # Return reports in reverse chronological order (newest first)
+        sorted_reports = sorted(REPORTS_STORAGE, key=lambda x: x.get('reportedAt', ''), reverse=True)
+        return {
+            "items": sorted_reports[:limit],
+            "total": len(REPORTS_STORAGE),
+            "message": f"Found {len(REPORTS_STORAGE)} reports"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error listing reports: {str(e)}")
 
-@app.get("/admin/api/report/{name}")
-def admin_get_report(name: str):
-    # TODO: Implement S3 retrieval
-    raise HTTPException(status_code=501, detail="S3 integration not yet implemented")
+@app.get("/admin/api/report/{report_id}")
+def admin_get_report(report_id: str):
+    """Get a specific report by ID"""
+    try:
+        for report in REPORTS_STORAGE:
+            if report.get('id') == report_id:
+                return report
+        raise HTTPException(status_code=404, detail="Report not found")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving report: {str(e)}")
 
-@app.get("/admin/api/digests")
-def admin_list_digests(limit: int = 200):
-    # TODO: Implement S3 listing
-    return {"items": [], "message": "S3 integration not yet implemented"}
-
-@app.get("/admin/api/digest/{name}")
-def admin_get_digest(name: str):
-    # TODO: Implement S3 retrieval
-    raise HTTPException(status_code=501, detail="S3 integration not yet implemented")
-
-# Remove static file mounting for Lambda compatibility
-# if ADMIN_DIST.exists():
-#     app.mount("/admin", StaticFiles(directory=str(ADMIN_DIST), html=True), name="admin")
+@app.get("/admin/api/reports/summary")
+def admin_reports_summary():
+    """Get summary statistics for reports"""
+    try:
+        total_reports = len(REPORTS_STORAGE)
+        today = datetime.utcnow().date()
+        today_reports = sum(1 for r in REPORTS_STORAGE 
+                          if datetime.fromisoformat(r['reportedAt'].replace('Z', '+00:00')).date() == today)
+        
+        # Count by tenant
+        tenant_counts = {}
+        for report in REPORTS_STORAGE:
+            tenant = report.get('tenantKey', 'unknown')
+            tenant_counts[tenant] = tenant_counts.get(tenant, 0) + 1
+        
+        return {
+            "totalReports": total_reports,
+            "todayReports": today_reports,
+            "tenantBreakdown": tenant_counts,
+            "lastUpdated": datetime.utcnow().isoformat() + "Z"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating summary: {str(e)}")
 
 # Lambda handler for AWS SAM deployment
 def lambda_handler(event, context):
