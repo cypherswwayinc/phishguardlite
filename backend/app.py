@@ -3,40 +3,108 @@ from pydantic import BaseModel, HttpUrl
 from typing import List, Optional
 from datetime import datetime
 import json
+import boto3
+import os
 from pathlib import Path
 import re
 import uuid
 
 app = FastAPI(title="PhishGuard Lite Backend", version="0.1.0")
 
-# In-memory storage for reports (in production, this would be S3/DynamoDB)
-REPORTS_STORAGE = []
-REPORTS_FILE = Path(__file__).parent / "reports" / "reports.json"
+# AWS S3 Configuration
+S3_BUCKET = os.environ.get('S3_BUCKET', 'phishguard-reports')
+S3_REGION = os.environ.get('AWS_REGION', 'us-east-1')
 
-# Ensure reports directory exists
-REPORTS_FILE.parent.mkdir(exist_ok=True)
+# Initialize S3 client
+try:
+    s3_client = boto3.client('s3', region_name=S3_REGION)
+    print(f"S3 client initialized for bucket: {S3_BUCKET}")
+except Exception as e:
+    print(f"Warning: S3 client initialization failed: {e}")
+    s3_client = None
 
-def load_reports():
-    """Load reports from JSON file"""
-    global REPORTS_STORAGE
+# Fallback to local storage if S3 is not available
+LOCAL_STORAGE = []
+LOCAL_FILE = Path(__file__).parent / "reports" / "reports.json"
+
+def ensure_local_storage():
+    """Ensure local storage directory exists"""
+    LOCAL_FILE.parent.mkdir(exist_ok=True)
+
+def load_reports_from_s3():
+    """Load reports from S3"""
+    if not s3_client:
+        return []
+    
     try:
-        if REPORTS_FILE.exists():
-            with open(REPORTS_FILE, 'r') as f:
-                REPORTS_STORAGE = json.load(f)
+        response = s3_client.get_object(Bucket=S3_BUCKET, Key='reports/reports.json')
+        reports = json.loads(response['Body'].read().decode('utf-8'))
+        print(f"Loaded {len(reports)} reports from S3")
+        return reports
+    except s3_client.exceptions.NoSuchKey:
+        print("No existing reports found in S3, starting fresh")
+        return []
     except Exception as e:
-        print(f"Error loading reports: {e}")
-        REPORTS_STORAGE = []
+        print(f"Error loading from S3: {e}, falling back to local storage")
+        return []
+
+def save_reports_to_s3(reports):
+    """Save reports to S3"""
+    if not s3_client:
+        return False
+    
+    try:
+        s3_client.put_object(
+            Bucket=S3_BUCKET,
+            Key='reports/reports.json',
+            Body=json.dumps(reports, indent=2),
+            ContentType='application/json'
+        )
+        print(f"Saved {len(reports)} reports to S3")
+        return True
+    except Exception as e:
+        print(f"Error saving to S3: {e}")
+        return False
+
+def load_reports_from_local():
+    """Load reports from local file"""
+    try:
+        if LOCAL_FILE.exists():
+            with open(LOCAL_FILE, 'r') as f:
+                reports = json.load(f)
+                print(f"Loaded {len(reports)} reports from local storage")
+                return reports
+    except Exception as e:
+        print(f"Error loading local reports: {e}")
+    return []
+
+def save_reports_to_local(reports):
+    """Save reports to local file"""
+    try:
+        ensure_local_storage()
+        with open(LOCAL_FILE, 'w') as f:
+            json.dump(reports, f, indent=2)
+        print(f"Saved {len(reports)} reports to local storage")
+        return True
+    except Exception as e:
+        print(f"Error saving local reports: {e}")
+        return False
+
+# Initialize reports storage
+REPORTS_STORAGE = []
+if s3_client:
+    REPORTS_STORAGE = load_reports_from_s3()
+else:
+    REPORTS_STORAGE = load_reports_from_local()
 
 def save_reports():
-    """Save reports to JSON file"""
-    try:
-        with open(REPORTS_FILE, 'w') as f:
-            json.dump(REPORTS_STORAGE, f, indent=2)
-    except Exception as e:
-        print(f"Error saving reports: {e}")
-
-# Load existing reports on startup
-load_reports()
+    """Save reports to storage (S3 preferred, local fallback)"""
+    if s3_client:
+        if save_reports_to_s3(REPORTS_STORAGE):
+            return True
+    
+    # Fallback to local storage
+    return save_reports_to_local(REPORTS_STORAGE)
 
 BAD_TLDS = {"zip","mov","gq","cf","tk","ml","ga","loan","click","country","uno","quest"}
 SHORTENERS = {"bit.ly","t.co","tinyurl.com","goo.gl","is.gd","ow.ly","buff.ly","cutt.ly","rebrand.ly"}
@@ -132,12 +200,19 @@ def root():
             "report": "/report",
             "admin": "/admin/api/*"
         },
-        "status": "running"
+        "status": "running",
+        "storage": "S3" if s3_client else "Local",
+        "bucket": S3_BUCKET if s3_client else "N/A"
     }
 
 @app.get("/health")
 def health():
-    return {"ok": True, "time": datetime.utcnow().isoformat() + "Z"}
+    return {
+        "ok": True, 
+        "time": datetime.utcnow().isoformat() + "Z",
+        "storage": "S3" if s3_client else "Local",
+        "bucket": S3_BUCKET if s3_client else "N/A"
+    }
 
 @app.post("/score", response_model=ScoreResponse)
 def score_endpoint(req: ScoreRequest):
@@ -165,7 +240,7 @@ def report_endpoint(req: ReportRequest):
         # Add to storage
         REPORTS_STORAGE.append(report)
         
-        # Save to file
+        # Save to storage
         save_reports()
         
         print(f"Report received: {report_id} for URL: {req.url}")
@@ -208,7 +283,8 @@ def admin_list_reports(limit: int = 200):
         return {
             "items": sorted_reports[:limit],
             "total": len(REPORTS_STORAGE),
-            "message": f"Found {len(REPORTS_STORAGE)} reports"
+            "message": f"Found {len(REPORTS_STORAGE)} reports",
+            "storage": "S3" if s3_client else "Local"
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error listing reports: {str(e)}")
@@ -243,7 +319,9 @@ def admin_reports_summary():
             "totalReports": total_reports,
             "todayReports": today_reports,
             "tenantBreakdown": tenant_counts,
-            "lastUpdated": datetime.utcnow().isoformat() + "Z"
+            "lastUpdated": datetime.utcnow().isoformat() + "Z",
+            "storage": "S3" if s3_client else "Local",
+            "bucket": S3_BUCKET if s3_client else "N/A"
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error generating summary: {str(e)}")

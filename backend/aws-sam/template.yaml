@@ -1,25 +1,112 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: PhishGuard Lite - FastAPI on Lambda (API Gateway)
-Globals: { Function: { Runtime: python3.11, MemorySize: 512, Timeout: 30 } }
+Description: PhishGuard Lite Backend API
+
 Parameters:
-  ReportsBucketName: { Type: String, Description: S3 bucket name to store reports }
-  AdminToken: { Type: String, NoEcho: true, Description: Token for /admin APIs }
-  TenantsTableName: { Type: String, Default: "", Description: Optional DynamoDB tenants table (PK: tenantKey) }
+  S3BucketName:
+    Type: String
+    Default: phishguard-reports
+    Description: Name for the S3 bucket to store phishing reports
+
 Resources:
-  ApiGateway: { Type: AWS::Serverless::HttpApi, Properties: { CorsConfiguration: { AllowOrigins: ["*"], AllowMethods: [GET, POST, OPTIONS], AllowHeaders: ["*"] } } }
-  BackendFunction:
+  # S3 Bucket for storing phishing reports
+  ReportsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref S3BucketName
+      VersioningConfiguration:
+        Status: Enabled
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldReports
+            Status: Enabled
+            ExpirationInDays: 365
+            NoncurrentVersionExpirationInDays: 30
+
+  # IAM Role for Lambda function
+  PhishGuardFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: S3AccessPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                  - s3:ListBucket
+                Resource:
+                  - !Sub '${ReportsBucket}/*'
+                  - !Ref ReportsBucket
+
+  # Lambda function for the API
+  PhishGuardFunction:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: ../
-      Handler: app.handler
-      Events: { Proxy: { Type: HttpApi, Properties: { ApiId: !Ref ApiGateway, Path: /{proxy+}, Method: ANY } } }
-      Environment: { Variables: { REPORTS_BUCKET: !Ref ReportsBucketName, ADMIN_TOKEN: !Ref AdminToken, TENANTS_TABLE: !Ref TenantsTableName } }
-      Policies:
-        - Version: '2012-10-17'
-          Statement:
-            - { Effect: Allow, Action: [logs:CreateLogGroup, logs:CreateLogStream, logs:PutLogEvents], Resource: "arn:aws:logs:*:*:*" }
-            - { Effect: Allow, Action: [s3:PutObject, s3:PutObjectAcl], Resource: !Sub "arn:aws:s3:::${ReportsBucketName}/*" }
-            - { Effect: Allow, Action: [dynamodb:PutItem, dynamodb:GetItem, dynamodb:Scan], Resource: !If [ HasTable, !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${TenantsTableName}", !Ref "AWS::NoValue" ] }
-Conditions: { HasTable: !Not [!Equals [!Ref TenantsTableName, ""]] }
-Outputs: { ApiBaseUrl: { Description: "Base URL", Value: !Sub "https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com" } }
+      Handler: app.lambda_handler
+      Runtime: python3.11
+      Timeout: 30
+      MemorySize: 512
+      Environment:
+        Variables:
+          S3_BUCKET: !Ref ReportsBucket
+          AWS_REGION: !Ref AWS::Region
+      Role: !GetAtt PhishGuardFunctionRole.Arn
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /{proxy+}
+            Method: ANY
+
+  # API Gateway
+  PhishGuardApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Prod
+      Cors:
+        AllowMethods: "'*'"
+        AllowHeaders: "'*'"
+        AllowOrigin: "'*'"
+      GatewayResponses:
+        DEFAULT_4XX:
+          ResponseParameters:
+            gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+        DEFAULT_5XX:
+          ResponseParameters:
+            gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+
+Outputs:
+  ApiUrl:
+    Description: "API Gateway endpoint URL"
+    Value: !Sub "https://${PhishGuardApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
+  
+  S3BucketName:
+    Description: "S3 bucket for storing phishing reports"
+    Value: !Ref ReportsBucket
+  
+  LambdaFunctionArn:
+    Description: "Lambda function ARN"
+    Value: !GetAtt PhishGuardFunction.Arn
