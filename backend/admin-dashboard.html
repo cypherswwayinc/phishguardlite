@@ -129,7 +129,12 @@
         </div>
         
         <div class="content">
-            <button class="refresh-btn" onclick="loadDashboard()">🔄 Refresh Dashboard</button>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <button class="refresh-btn" onclick="loadDashboard()">🔄 Refresh Dashboard</button>
+                <div id="apiStatus" style="padding: 8px 16px; border-radius: 6px; font-size: 14px; font-weight: 500;">
+                    Checking API status...
+                </div>
+            </div>
             
             <div id="stats" class="stats">
                 <div class="stat-card">
@@ -178,18 +183,52 @@
         
         async function loadDashboard() {
             try {
+                // Check API health first
+                const healthResponse = await fetch(`${API_BASE}/health`);
+                if (healthResponse.ok) {
+                    document.getElementById('apiStatus').textContent = '✅ API Connected';
+                    document.getElementById('apiStatus').style.background = '#e8f5e8';
+                    document.getElementById('apiStatus').style.color = '#2e7d32';
+                } else {
+                    document.getElementById('apiStatus').textContent = '⚠️ API Error';
+                    document.getElementById('apiStatus').style.background = '#fff3e0';
+                    document.getElementById('apiStatus').style.color = '#f57c00';
+                }
+                
                 // Load summary stats
                 const summaryResponse = await fetch(`${API_BASE}/admin/api/reports/summary`);
+                if (!summaryResponse.ok) {
+                    throw new Error(`API Error: ${summaryResponse.status} - ${summaryResponse.statusText}`);
+                }
                 const summary = await summaryResponse.json();
                 
-                document.getElementById('totalReports').textContent = summary.totalReports;
-                document.getElementById('todayReports').textContent = summary.todayReports;
-                document.getElementById('activeTenants').textContent = Object.keys(summary.tenantBreakdown).length;
-                document.getElementById('lastUpdated').textContent = new Date(summary.lastUpdated).toLocaleTimeString();
+                // Check if summary has the expected structure
+                if (!summary || typeof summary !== 'object') {
+                    throw new Error('Invalid response format from API');
+                }
+                
+                document.getElementById('totalReports').textContent = summary.totalReports || 0;
+                document.getElementById('todayReports').textContent = summary.todayReports || 0;
+                document.getElementById('activeTenants').textContent = 
+                    (summary.tenantBreakdown && typeof summary.tenantBreakdown === 'object') 
+                    ? Object.keys(summary.tenantBreakdown).length 
+                    : 0;
+                document.getElementById('lastUpdated').textContent = 
+                    summary.lastUpdated 
+                    ? new Date(summary.lastUpdated).toLocaleTimeString() 
+                    : 'N/A';
                 
                 // Load reports
                 const reportsResponse = await fetch(`${API_BASE}/admin/api/reports?limit=50`);
+                if (!reportsResponse.ok) {
+                    throw new Error(`Reports API Error: ${reportsResponse.status} - ${reportsResponse.statusText}`);
+                }
                 const reports = await reportsResponse.json();
+                
+                // Check if reports has the expected structure
+                if (!reports || !Array.isArray(reports.items)) {
+                    throw new Error('Invalid reports response format');
+                }
                 
                 displayReports(reports.items);
                 
@@ -199,35 +238,74 @@
                 
             } catch (error) {
                 console.error('Error loading dashboard:', error);
-                document.getElementById('error').textContent = `Error loading dashboard: ${error.message}`;
-                document.getElementById('error').style.display = 'block';
+                
+                // Show demo data if API is not available
+                if (error.message.includes('API Error') || error.message.includes('Invalid response')) {
+                    showDemoMode();
+                } else {
+                    document.getElementById('error').textContent = `Error loading dashboard: ${error.message}`;
+                    document.getElementById('error').style.display = 'block';
+                }
                 document.getElementById('loading').style.display = 'none';
             }
+        }
+        
+        function showDemoMode() {
+            // Update API status to show admin endpoints not available
+            document.getElementById('apiStatus').textContent = '🚧 Admin API Pending';
+            document.getElementById('apiStatus').style.background = '#fff3e0';
+            document.getElementById('apiStatus').style.color = '#f57c00';
+            
+            // Show demo statistics
+            document.getElementById('totalReports').textContent = '0';
+            document.getElementById('todayReports').textContent = '0';
+            document.getElementById('activeTenants').textContent = '0';
+            document.getElementById('lastUpdated').textContent = 'Demo Mode';
+            
+            // Show demo message
+            document.getElementById('error').innerHTML = `
+                <strong>🚧 Demo Mode - Admin API Not Yet Deployed</strong><br>
+                The admin API endpoints are not yet deployed to AWS. This dashboard will show real data once the updated backend is deployed.<br><br>
+                <strong>Current Status:</strong> Backend code updated and committed, pending AWS deployment.<br>
+                <strong>Next Steps:</strong> Deploy the updated backend to see live phishing reports.<br><br>
+                <strong>Available Endpoints:</strong><br>
+                ✅ <code>/health</code> - API health check<br>
+                ✅ <code>/score</code> - URL scoring<br>
+                ✅ <code>/report</code> - Phishing reports<br>
+                🚧 <code>/admin/api/*</code> - Admin dashboard (pending deployment)
+            `;
+            document.getElementById('error').style.display = 'block';
+            
+            // Show empty reports table
+            displayReports([]);
+            document.getElementById('reports').style.display = 'block';
         }
         
         function displayReports(reports) {
             const tbody = document.getElementById('reportsBody');
             tbody.innerHTML = '';
             
-            if (reports.length === 0) {
+            if (!reports || reports.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 40px; color: #666;">No reports found</td></tr>';
                 return;
             }
             
             reports.forEach(report => {
+                if (!report || typeof report !== 'object') return;
+                
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td><code>${report.id.substring(0, 8)}...</code></td>
+                    <td><code>${report.id ? report.id.substring(0, 8) + '...' : 'N/A'}</code></td>
                     <td class="report-url">
-                        <a href="${report.url}" target="_blank" title="${report.url}">${report.url}</a>
+                        <a href="${report.url || '#'}" target="_blank" title="${report.url || 'N/A'}">${report.url || 'N/A'}</a>
                     </td>
                     <td>${report.tenantKey || 'unknown'}</td>
-                    <td>${new Date(report.reportedAt).toLocaleString()}</td>
-                    <td><span class="status-${report.status}">${report.status}</span></td>
+                    <td>${report.reportedAt ? new Date(report.reportedAt).toLocaleString() : 'N/A'}</td>
+                    <td><span class="status-${report.status || 'unknown'}">${report.status || 'unknown'}</span></td>
                     <td>
                         <details>
                             <summary>View Details</summary>
-                            <pre style="font-size: 12px; margin-top: 10px;">${JSON.stringify(report.context, null, 2)}</pre>
+                            <pre style="font-size: 12px; margin-top: 10px;">${JSON.stringify(report.context || {}, null, 2)}</pre>
                         </details>
                     </td>
                 `;

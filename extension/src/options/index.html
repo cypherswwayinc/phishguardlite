@@ -1,32 +1,110 @@
-<!-- src/options/index.html -->
 <!doctype html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>PhishGuard Lite — Options</title>
-  <link rel="stylesheet" href="./styles.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font: 14px/1.4 -apple-system, Segoe UI, Roboto, sans-serif; margin: 24px; max-width: 720px; }
+    h1 { font-size: 20px; margin-bottom: 12px; }
+    .row { margin: 10px 0; display: flex; gap: 12px; align-items: center; }
+    label { min-width: 180px; }
+    input[type="text"], input[type="number"] { flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 6px; }
+    .switch { display: flex; align-items: center; gap: 8px; }
+    #save { padding: 8px 14px; border-radius: 8px; border: 0; background: #1a73e8; color: #fff; cursor: pointer; }
+    #save:disabled { opacity: 0.6; cursor: not-allowed; }
+    #status { height: 20px; margin-top: 8px; color: #0a7a09; font-weight: 600; }
+    .error { color: #b00020; }
+    .hint { color: #555; font-size: 12px; }
+  </style>
 </head>
 <body>
-  <main>
-    <h1>PhishGuard Lite — Settings</h1>
-    <label><input type="checkbox" id="enabled" /> Enable detection</label>
-    <div class="row">
-      <label for="minScore">Minimum score to flag:</label>
-      <input type="number" id="minScore" min="0" max="100" value="20" />
-    </div>
-    <div class="row">
-  <label for="apiBase">API Base URL:</label>
-  <input type="text" id="apiBase" placeholder="https://your-api.example.com" />
-</div>
-<div class="row">
-  <label for="tenantKey">Tenant Key:</label>
-  <input type="text" id="tenantKey" placeholder="(optional)" />
-</div>
-<label><input type="checkbox" id="enableReporting" /> Enable “Report Suspicious”</label>
-<button id="save">Save</button>
-    <p id="status" class="status"></p>
-  </main>
-  <script type="module" src="./index.ts"></script>
+  <h1>PhishGuard Lite — Options</h1>
+
+  <div class="row switch">
+    <input type="checkbox" id="enabled" />
+    <label for="enabled">Enable detection</label>
+  </div>
+
+  <div class="row switch">
+    <input type="checkbox" id="enableReporting" />
+    <label for="enableReporting">Enable "Report Suspicious"</label>
+  </div>
+
+  <div class="row">
+    <label for="minScore">Minimum score</label>
+    <input type="number" id="minScore" min="0" max="100" step="1" />
+  </div>
+
+  <div class="row">
+    <label for="apiBase">API Base URL</label>
+    <input type="text" id="apiBase" placeholder="https://<api-id>.execute-api.<region>.amazonaws.com/Prod" />
+  </div>
+
+  <div class="row">
+    <label for="tenantKey">Tenant Key</label>
+    <input type="text" id="tenantKey" placeholder="demo or acme-001" />
+  </div>
+
+  <div class="row">
+    <button id="save">Save</button>
+  </div>
+
+  <p id="status" role="status" aria-live="polite"></p>
+  <p class="hint">Tip: after saving, reload your email tab to apply changes.</p>
+
+  <!-- Inline JavaScript for immediate testing -->
+  <script>
+    console.log('Inline script loaded - testing basic functionality');
+    
+    // Simple test to see if basic DOM manipulation works
+    document.addEventListener('DOMContentLoaded', function() {
+      console.log('DOM loaded in inline script');
+      
+      const saveBtn = document.getElementById('save');
+      const statusEl = document.getElementById('status');
+      
+      if (saveBtn && statusEl) {
+        console.log('Found save button and status element');
+        
+        saveBtn.addEventListener('click', function() {
+          console.log('Save button clicked!');
+          statusEl.textContent = 'Testing save functionality...';
+          statusEl.className = '';
+          
+          // Test if Chrome storage is available
+          if (typeof chrome !== 'undefined' && chrome.storage) {
+            console.log('Chrome storage available');
+            statusEl.textContent = 'Chrome storage is available ✓';
+            
+            // Try to save a test value
+            chrome.storage.sync.set({test: 'working'}, function() {
+              if (chrome.runtime.lastError) {
+                console.error('Storage error:', chrome.runtime.lastError);
+                statusEl.textContent = 'Storage error: ' + chrome.runtime.lastError.message;
+                statusEl.className = 'error';
+              } else {
+                console.log('Test save successful');
+                statusEl.textContent = 'Test save successful! ✓';
+              }
+            });
+          } else {
+            console.error('Chrome storage not available');
+            statusEl.textContent = 'Chrome storage not available';
+            statusEl.className = 'error';
+          }
+        });
+      } else {
+        console.error('Missing required elements');
+        if (statusEl) {
+          statusEl.textContent = 'Error: Missing required elements';
+          statusEl.className = 'error';
+        }
+      }
+    });
+  </script>
+
+  <!-- Load the compiled JavaScript file as fallback -->
+  <script src="./options.js"></script>
 </body>
 </html>

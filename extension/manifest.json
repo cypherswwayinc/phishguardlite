@@ -21,10 +21,10 @@
     "https://*/*"
   ],
   "background": {
-    "service_worker": "src/background.ts",
+    "service_worker": "background.js",
     "type": "module"
   },
-  "options_page": "src/options/index.html",
+  "options_page": "index.html",
   "content_scripts": [
     {
       "matches": [
@@ -33,7 +33,7 @@
         "https://www.linkedin.com/*"
       ],
       "js": [
-        "src/content.ts"
+        "content.js"
       ],
       "run_at": "document_idle"
     }
