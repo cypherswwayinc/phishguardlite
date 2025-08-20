@@ -1,10 +1,11 @@
+const DEFAULT_API = "https://ysnpbaet5e.execute-api.us-east-1.amazonaws.com/Prod";
 // src/background.ts
 // Handles "Report Suspicious" requests by posting to backend /report
 async function postReport(body) {
   return new Promise((resolve) => {
     chrome.storage.sync.get(["apiBase", "tenantKey"], async (s) => {
       try {
-        const apiBase = (s.apiBase || "").replace(/\/$/, "");
+        const apiBase = (s.apiBase || DEFAULT_API).replace(/\/$/, "");
         if (!apiBase) return resolve({ ok: false, error: "API base not set" });
         const resp = await fetch(`${apiBase}/report`, {
           method: "POST",

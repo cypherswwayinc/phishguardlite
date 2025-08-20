@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "PhishGuard Lite",
-  "version": "0.1.0",
-  "description": "Inline phishing risk labels for Gmail/Outlook/LinkedIn. Local heuristics by default; optional backend enrichment.",
+  "version": "0.2.0",
+  "description": "Inline phishing risk labels and one-click reporting. Local heuristics; report only on user action.",
   "action": {
     "default_title": "PhishGuard Lite"
   },

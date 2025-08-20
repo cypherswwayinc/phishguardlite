@@ -1,0 +1,25 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: PhishGuard Lite - FastAPI on Lambda (API Gateway)
+Globals: { Function: { Runtime: python3.11, MemorySize: 512, Timeout: 30 } }
+Parameters:
+  ReportsBucketName: { Type: String, Description: S3 bucket name to store reports }
+  AdminToken: { Type: String, NoEcho: true, Description: Token for /admin APIs }
+  TenantsTableName: { Type: String, Default: "", Description: Optional DynamoDB tenants table (PK: tenantKey) }
+Resources:
+  ApiGateway: { Type: AWS::Serverless::HttpApi, Properties: { CorsConfiguration: { AllowOrigins: ["*"], AllowMethods: [GET, POST, OPTIONS], AllowHeaders: ["*"] } } }
+  BackendFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../
+      Handler: app.handler
+      Events: { Proxy: { Type: HttpApi, Properties: { ApiId: !Ref ApiGateway, Path: /{proxy+}, Method: ANY } } }
+      Environment: { Variables: { REPORTS_BUCKET: !Ref ReportsBucketName, ADMIN_TOKEN: !Ref AdminToken, TENANTS_TABLE: !Ref TenantsTableName } }
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - { Effect: Allow, Action: [logs:CreateLogGroup, logs:CreateLogStream, logs:PutLogEvents], Resource: "arn:aws:logs:*:*:*" }
+            - { Effect: Allow, Action: [s3:PutObject, s3:PutObjectAcl], Resource: !Sub "arn:aws:s3:::${ReportsBucketName}/*" }
+            - { Effect: Allow, Action: [dynamodb:PutItem, dynamodb:GetItem, dynamodb:Scan], Resource: !If [ HasTable, !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${TenantsTableName}", !Ref "AWS::NoValue" ] }
+Conditions: { HasTable: !Not [!Equals [!Ref TenantsTableName, ""]] }
+Outputs: { ApiBaseUrl: { Description: "Base URL", Value: !Sub "https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com" } }

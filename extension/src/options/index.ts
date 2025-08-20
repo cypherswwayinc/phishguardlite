@@ -1,3 +1,4 @@
+const DEFAULT_API_BASE = "https://ysnpbaet5e.execute-api.us-east-1.amazonaws.com/Prod";
 // src/options/index.ts
 const enabledEl = document.getElementById('enabled') as HTMLInputElement;
 const minScoreEl = document.getElementById('minScore') as HTMLInputElement;
@@ -8,12 +9,12 @@ const saveBtn = document.getElementById('save') as HTMLButtonElement;
 const statusEl = document.getElementById('status') as HTMLParagraphElement;
 
 function load() {
-  chrome.storage.sync.get(["enabled", "minScore", "apiUrl", "tenantKey", "enableReporting"], (s) => {
+  chrome.storage.sync.get(["enabled","minScore","apiBase","tenantKey","enableReporting"], ["enabled", "minScore", "apiUrl", "tenantKey", "enableReporting"], (s) => {
     enabledEl.checked = s.enabled ?? true;
     minScoreEl.value = String(s.minScore ?? 20);
     apiUrlEl.value = s.apiUrl ?? "https://ysnpbaet5e.execute-api.us-east-1.amazonaws.com/Prod";
     tenantKeyEl.value = s.tenantKey ?? "";
-    enableReportingEl.checked = s.enableReporting ?? false;
+    enableReportingEl.checked = (s.enableReporting ?? true) ?? false;
   });
 }
 
