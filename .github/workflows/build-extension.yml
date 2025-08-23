@@ -47,8 +47,9 @@ jobs:
 
       - name: Package ZIP
         run: |
+          # Create ZIP with files at root level (Chrome Web Store requirement)
           cd dist
-          zip -r ../phishguard-lite-${GITHUB_REF_NAME}.zip .
+          zip -r ../phishguard-lite-${GITHUB_REF_NAME}.zip . -x ".*"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
