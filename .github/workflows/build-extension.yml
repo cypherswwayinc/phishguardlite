@@ -48,8 +48,10 @@ jobs:
       - name: Package ZIP
         run: |
           # Create ZIP with files at root level (Chrome Web Store requirement)
+          # The working directory is already 'extension', so we're in the right place
+          # Create ZIP directly from dist folder contents
           cd dist
-          zip -r ../phishguard-lite-${GITHUB_REF_NAME}.zip . -x ".*"
+          zip -r ../phishguard-lite-${GITHUB_REF_NAME}.zip *
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
