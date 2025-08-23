@@ -8,7 +8,7 @@ Globals:
     Runtime: python3.9
     Environment:
       Variables:
-        REPORTS_BUCKET: "pg-reports-235494818808-us-east-1"
+        REPORTS_BUCKET: "pg-reports-${AWS::AccountId}-${AWS::Region}"
 
 Resources:
   # Main API Lambda Function
@@ -30,10 +30,10 @@ Resources:
             Method: ANY
       Policies:
         - S3CrudPolicy:
-            BucketName: "pg-reports-235494818808-us-east-1"
+            BucketName: "pg-reports-${AWS::AccountId}-${AWS::Region}"
       Environment:
         Variables:
-          REPORTS_BUCKET: "pg-reports-235494818808-us-east-1"
+          REPORTS_BUCKET: "pg-reports-${AWS::AccountId}-${AWS::Region}"
 
 Outputs:
   PhishGuardAPI:
@@ -41,4 +41,4 @@ Outputs:
     Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
   PhishGuardReportsBucket:
     Description: "S3 Bucket for PhishGuard reports (existing)"
-    Value: "pg-reports-235494818808-us-east-1"
+    Value: "pg-reports-${AWS::AccountId}-${AWS::Region}"
