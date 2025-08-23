@@ -1,112 +1,67 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PhishGuard Lite - Extension Test</title>
+    <title>PhishGuard Extension Test</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            line-height: 1.6;
-        }
-        .test-section {
-            margin: 20px 0;
-            padding: 15px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-        }
-        .safe { border-left: 4px solid #28a745; }
-        .caution { border-left: 4px solid #ffc107; }
-        .high-risk { border-left: 4px solid #dc3545; }
-        .url {
-            color: #007bff;
-            text-decoration: underline;
-            cursor: pointer;
-        }
-        .url:hover {
-            color: #0056b3;
-        }
-        .note {
-            background-color: #f8f9fa;
-            padding: 10px;
-            border-radius: 3px;
-            margin: 10px 0;
-        }
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        .test-section { margin: 20px 0; padding: 20px; border: 1px solid #ddd; border-radius: 5px; }
+        .suspicious { background-color: #fff3cd; border-color: #ffeaa7; }
+        .safe { background-color: #d1ecf1; border-color: #bee5eb; }
+        a { color: #007bff; text-decoration: none; }
+        a:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
-    <h1>🧭 PhishGuard Lite - Extension Test Page</h1>
+    <h1>🛡️ PhishGuard Extension Test Page</h1>
     
-    <div class="note">
-        <strong>Note:</strong> This page is designed to test the PhishGuard Lite browser extension. 
-        Install the extension and navigate to this page to see phishing detection in action.
+    <div class="test-section suspicious">
+        <h3>🚨 Suspicious Links (Should trigger warnings)</h3>
+        <p><a href="https://example.zip">example.zip</a> - High risk TLD (.zip)</p>
+        <p><a href="https://bit.ly/suspicious">bit.ly/suspicious</a> - URL shortener</p>
+        <p><a href="https://g00gle.com">g00gle.com</a> - Lookalike domain (0 vs o)</p>
+        <p><a href="https://paypa1.com">paypa1.com</a> - Lookalike domain (1 vs l)</p>
+        <p><a href="https://evil.com/account@secure-login">evil.com/account@secure-login</a> - Email obfuscation</p>
+        <p><a href="https://suspicious.com/very-long-path-that-exceeds-the-normal-length-limits-and-should-trigger-the-length-detection-logic-because-it-is-much-longer-than-150-characters-which-is-the-threshold-for-very-long-urls">Very long URL path</a> - Exceeds 150 characters</p>
     </div>
-
+    
     <div class="test-section safe">
-        <h3>✅ Safe Links (Should show low/no risk)</h3>
-        <p>Here are some safe links to test:</p>
-        <ul>
-            <li><a href="https://google.com" class="url">https://google.com</a> - Google Search</li>
-            <li><a href="https://github.com" class="url">https://github.com</a> - GitHub</li>
-            <li><a href="https://stackoverflow.com" class="url">https://stackoverflow.com</a> - Stack Overflow</li>
-        </ul>
+        <h3>✅ Safe Links (Should be fine)</h3>
+        <p><a href="https://google.com">google.com</a> - Trusted domain</p>
+        <p><a href="https://github.com">github.com</a> - Known safe</p>
+        <p><a href="https://stackoverflow.com">stackoverflow.com</a> - Safe domain</p>
+        <p><a href="https://paypal.com">paypal.com</a> - Legitimate domain</p>
     </div>
-
-    <div class="test-section caution">
-        <h3>⚠️ Caution Links (Should show medium risk)</h3>
-        <p>These links have some suspicious characteristics:</p>
-        <ul>
-            <li><a href="https://bit.ly/suspicious" class="url">https://bit.ly/suspicious</a> - URL shortener</li>
-            <li><a href="https://example.com/very/long/path/with/many/parameters?param1=value1&param2=value2&param3=value3&param4=value4&param5=value5" class="url">Very long URL with many parameters</a></li>
-            <li><a href="https://google.com" class="url">PayPal - Click to verify your account</a> - Domain mismatch</li>
-        </ul>
-    </div>
-
-    <div class="test-section high-risk">
-        <h3>🚨 High Risk Links (Should show high risk)</h3>
-        <p>These links have multiple suspicious characteristics:</p>
-        <ul>
-            <li><a href="https://suspicious-site.gq" class="url">https://suspicious-site.gq</a> - High-risk TLD</li>
-            <li><a href="https://malicious-site.cf/login@fake-bank.com" class="url">https://malicious-site.cf/login@fake-bank.com</a> - High-risk TLD + @ symbol</li>
-            <li><a href="https://bit.ly/very-suspicious.gq" class="url">https://bit.ly/very-suspicious.gq</a> - URL shortener + high-risk TLD</li>
-        </ul>
-    </div>
-
+    
     <div class="test-section">
-        <h3>📧 Email-like Content</h3>
-        <p>Simulating email content with suspicious links:</p>
-        <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px;">
-            <p><strong>From:</strong> security@paypal.com</p>
-            <p><strong>Subject:</strong> Your account has been suspended</p>
-            <p>Dear valued customer,</p>
-            <p>We have detected suspicious activity on your account. Please click the link below to verify your identity:</p>
-            <p><a href="https://paypal-verify.gq/account/secure" class="url">https://paypal-verify.gq/account/secure</a></p>
-            <p>If you don't verify within 24 hours, your account will be permanently suspended.</p>
-            <p>Best regards,<br>PayPal Security Team</p>
-        </div>
-    </div>
-
-    <div class="note">
-        <strong>Extension Features to Test:</strong>
+        <h3>🔧 Extension Status</h3>
+        <p>If the extension is working, you should see:</p>
         <ul>
-            <li>Inline risk labels next to suspicious links</li>
-            <li>Color-coded risk indicators (green=safe, yellow=caution, red=high-risk)</li>
-            <li>Detailed risk explanations</li>
-            <li>Real-time scoring using the PhishGuard API</li>
+            <li>Risk labels next to suspicious links</li>
+            <li>Report buttons for suspicious links</li>
+            <li>No warnings on safe links</li>
         </ul>
     </div>
-
-    <script>
-        // Add click handlers to demonstrate the links
-        document.querySelectorAll('.url').forEach(link => {
-            link.addEventListener('click', function(e) {
-                e.preventDefault();
-                alert('Link clicked: ' + this.href + '\n\nThis is a test page. In a real scenario, the PhishGuard extension would analyze this link and show risk indicators.');
-            });
-        });
-    </script>
+    
+    <div class="test-section">
+        <h3>📱 How to Test</h3>
+        <ol>
+            <li>Load the extension in Chrome (see instructions below)</li>
+            <li>Refresh this page</li>
+            <li>Look for risk labels and report buttons</li>
+            <li>Click on suspicious links to test reporting</li>
+        </ol>
+    </div>
+    
+    <div class="test-section">
+        <h3>🔍 Expected Scoring Results</h3>
+        <ul>
+            <li><strong>example.zip</strong> → High Risk (40 points: High-risk TLD)</li>
+            <li><strong>bit.ly/suspicious</strong> → Caution (20 points: URL shortener)</li>
+            <li><strong>g00gle.com</strong> → High Risk (35 points: Lookalike domain)</li>
+            <li><strong>paypa1.com</strong> → High Risk (35 points: Lookalike domain)</li>
+            <li><strong>evil.com/account@secure-login</strong> → Caution (20 points: Email obfuscation)</li>
+            <li><strong>Very long URL path</strong> → Caution (10 points: Very long URL)</li>
+        </ul>
+    </div>
 </body>
 </html>

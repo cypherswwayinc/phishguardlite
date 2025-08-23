@@ -37,6 +37,16 @@ Resources:
                   - !Sub 'arn:aws:s3:::phishguard-reports-1755667751/*'
                   - !Sub 'arn:aws:s3:::phishguard-reports-1755667751'
 
+  # API Gateway
+  PhishGuardApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Prod
+      Cors:
+        AllowMethods: "'*'"
+        AllowHeaders: "'*'"
+        AllowOrigin: "'*'"
+
   # Lambda function for the API
   PhishGuardFunction:
     Type: AWS::Serverless::Function
@@ -57,16 +67,6 @@ Resources:
             RestApiId: !Ref PhishGuardApi
             Path: /{proxy+}
             Method: ANY
-
-  # API Gateway
-  PhishGuardApi:
-    Type: AWS::Serverless::Api
-    Properties:
-      StageName: Prod
-      Cors:
-        AllowMethods: "'*'"
-        AllowHeaders: "'*'"
-        AllowOrigin: "'*'"
 
 Outputs:
   ApiUrl:

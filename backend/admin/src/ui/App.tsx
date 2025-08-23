@@ -1,252 +1,214 @@
 
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useState, useEffect } from 'react';
 
-// Cloud API configuration
-const API_BASE_URL = 'https://ysnpbaet5e.execute-api.us-east-1.amazonaws.com/Prod'
+// Replace with your actual API Gateway URL
+const API_BASE_URL = 'https://YOUR_API_ID.execute-api.YOUR_REGION.amazonaws.com/Prod'
 
-type Report = {
-  name: string
-  receivedAt?: string
-  url?: string
-  pageUrl?: string
-  tenantKey?: string
-  reasons?: string[]
-  label?: string // Add label field for filtering
+interface Report {
+  id: string;
+  url: string;
+  reportedAt: string;
+  tenantKey?: string;
+  reasons?: string[];
+  context?: any;
 }
-type Digest = { name: string, updatedAt?: string }
 
-function useFetch<T>(path: string, deps: any[] = []) {
-  const [data, setData] = useState<T | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [err, setErr] = useState<string | null>(null)
+interface Summary {
+  totalReports: number;
+  todayReports: number;
+  tenantBreakdown: Record<string, number>;
+  lastUpdated: string;
+}
+
+const App: React.FC = () => {
+  const [reports, setReports] = useState<Report[]>([]);
+  const [summary, setSummary] = useState<Summary | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedTenant, setSelectedTenant] = useState<string>('');
+
   useEffect(() => {
-    let alive = true
-    setLoading(true)
-    // Use full API URL instead of relative path
-    const fullUrl = path.startsWith('http') ? path : `${API_BASE_URL}${path}`
-    fetch(fullUrl).then(r => r.json()).then(d => {
-      if (!alive) return
-      setData(d)
-      setLoading(false)
-    }).catch(e => {
-      if (!alive) return
-      setErr(String(e))
-      setLoading(false)
-    })
-    return () => { alive = false }
-  }, deps)
-  return { data, loading, err }
-}
+    fetchData();
+  }, []);
 
-function Reports() {
-  const { data, loading, err } = useFetch<{items: Report[]}>('/admin/api/reports', [])
-  const [q, setQ] = useState('')
-  const [sel, setSel] = useState<Report | null>(null)
-  const [labelFilter, setLabelFilter] = useState<string>('all')
-  const [startDate, setStartDate] = useState<string>('')
-  const [endDate, setEndDate] = useState<string>('')
-  
-  const items = useMemo(() => {
-    const xs = data?.items || []
-    let filtered = xs
-    
-    // Apply search filter
-    if (q) {
-      const qq = q.toLowerCase()
-      filtered = filtered.filter(it => 
-        (it.url||'').toLowerCase().includes(qq) || 
-        (it.pageUrl||'').toLowerCase().includes(qq) || 
-        (it.tenantKey||'').toLowerCase().includes(qq)
-      )
-    }
-    
-    // Apply label filter
-    if (labelFilter !== 'all') {
-      filtered = filtered.filter(it => it.label === labelFilter)
-    }
-    
-    // Apply date range filter
-    if (startDate || endDate) {
-      filtered = filtered.filter(it => {
-        if (!it.receivedAt) return false
-        const reportDate = new Date(it.receivedAt)
-        
-        if (startDate && reportDate < new Date(startDate)) return false
-        if (endDate && reportDate > new Date(endDate + 'T23:59:59')) return false
-        
-        return true
-      })
-    }
-    
-    return filtered
-  }, [data, q, labelFilter, startDate, endDate])
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
 
-  // Get unique labels from data for the dropdown
-  const availableLabels = useMemo(() => {
-    const labels = new Set<string>()
-    data?.items?.forEach(item => {
-      if (item.label) labels.add(item.label)
-    })
-    return Array.from(labels).sort()
-  }, [data])
+      // Fetch summary
+      const summaryResponse = await fetch(`${API_BASE_URL}/admin/api/reports/summary`);
+      if (!summaryResponse.ok) {
+        throw new Error(`Failed to fetch summary: ${summaryResponse.status}`);
+      }
+      const summaryData = await summaryResponse.json();
+      setSummary(summaryData);
+
+      // Fetch reports
+      const reportsResponse = await fetch(`${API_BASE_URL}/admin/api/reports?limit=200`);
+      if (!reportsResponse.ok) {
+        throw new Error(`Failed to fetch reports: ${reportsResponse.status}`);
+      }
+      const reportsData = await reportsResponse.json();
+      setReports(reportsData.items || []);
+
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredReports = reports.filter(report => {
+    const matchesSearch = report.url.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (report.tenantKey || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesTenant = !selectedTenant || report.tenantKey === selectedTenant;
+    return matchesSearch && matchesTenant;
+  });
+
+  const tenants = summary ? Object.keys(summary.tenantBreakdown) : [];
+
+  if (loading) {
+    return (
+      <div style={{ padding: '20px', textAlign: 'center' }}>
+        <h2>Loading...</h2>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ padding: '20px', color: 'red' }}>
+        <h2>Error</h2>
+        <p>{error}</p>
+        <button onClick={fetchData}>Retry</button>
+      </div>
+    );
+  }
 
   return (
-    <div className="card">
-      <div className="toolbar">
-        <input type="search" placeholder="Search URL, page or tenant…" value={q} onChange={e => setQ(e.target.value)} />
-        
-        {/* Label Filter Dropdown */}
-        <select 
-          value={labelFilter} 
-          onChange={e => setLabelFilter(e.target.value)}
-          style={{ padding: '8px 10px', border: '1px solid #ddd', borderRadius: '8px' }}
-        >
-          <option value="all">All Labels</option>
-          {availableLabels.map(label => (
-            <option key={label} value={label}>{label}</option>
-          ))}
-        </select>
-        
-        {/* Date Range Selectors */}
-        <input 
-          type="date" 
-          value={startDate} 
-          onChange={e => setStartDate(e.target.value)}
-          placeholder="Start Date"
-          style={{ padding: '8px 10px', border: '1px solid #ddd', borderRadius: '8px' }}
-        />
-        <input 
-          type="date" 
-          value={endDate} 
-          onChange={e => setEndDate(e.target.value)}
-          placeholder="End Date"
-          style={{ padding: '8px 10px', border: '1px solid #ddd', borderRadius: '8px' }}
-        />
-        
-        <button className="btn" onClick={() => location.reload()}>Refresh</button>
-        
-        {/* Clear Filters Button */}
-        {(labelFilter !== 'all' || startDate || endDate) && (
-          <button 
-            className="btn" 
-            onClick={() => {
-              setLabelFilter('all')
-              setStartDate('')
-              setEndDate('')
-            }}
-            style={{ backgroundColor: '#f0f0f0' }}
-          >
-            Clear Filters
-          </button>
-        )}
-      </div>
+    <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
+      <h1>PhishGuard Lite Admin Dashboard</h1>
       
-      {/* Filter Summary */}
-      {(labelFilter !== 'all' || startDate || endDate) && (
-        <div style={{ 
-          marginBottom: '10px', 
-          padding: '8px 12px', 
-          backgroundColor: '#f8f9fa', 
-          borderRadius: '6px',
-          fontSize: '14px',
-          color: '#666'
-        }}>
-          <strong>Active Filters:</strong>
-          {labelFilter !== 'all' && <span style={{ marginLeft: '10px' }}>Label: {labelFilter}</span>}
-          {startDate && <span style={{ marginLeft: '10px' }}>From: {startDate}</span>}
-          {endDate && <span style={{ marginLeft: '10px' }}>To: {endDate}</span>}
-          <span style={{ marginLeft: '10px' }}>Results: {items.length} of {data?.items?.length || 0}</span>
+      {/* Summary Cards */}
+      {summary && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '30px' }}>
+          <div style={{ background: '#f0f0f0', padding: '20px', borderRadius: '8px', textAlign: 'center' }}>
+            <h3>Total Reports</h3>
+            <div style={{ fontSize: '2em', fontWeight: 'bold' }}>{summary.totalReports}</div>
+          </div>
+          <div style={{ background: '#f0f0f0', padding: '20px', borderRadius: '8px', textAlign: 'center' }}>
+            <h3>Today's Reports</h3>
+            <div style={{ fontSize: '2em', fontWeight: 'bold' }}>{summary.todayReports}</div>
+          </div>
+          <div style={{ background: '#f0f0f0', padding: '20px', borderRadius: '8px', textAlign: 'center' }}>
+            <h3>Active Tenants</h3>
+            <div style={{ fontSize: '2em', fontWeight: 'bold' }}>{tenants.length}</div>
+          </div>
+          <div style={{ background: '#f0f0f0', padding: '20px', borderRadius: '8px', textAlign: 'center' }}>
+            <h3>Last Updated</h3>
+            <div style={{ fontSize: '1.2em' }}>{new Date(summary.lastUpdated).toLocaleString()}</div>
+          </div>
         </div>
       )}
-      
-      {loading ? <p>Loading…</p> : err ? <p>Error: {err}</p> : (
-        <table>
+
+      {/* Filters */}
+      <div style={{ marginBottom: '20px', display: 'flex', gap: '20px', alignItems: 'center' }}>
+        <div>
+          <label htmlFor="search">Search: </label>
+          <input
+            id="search"
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Search URLs or tenant keys..."
+            style={{ padding: '8px', width: '300px' }}
+          />
+        </div>
+        <div>
+          <label htmlFor="tenant">Filter by Tenant: </label>
+          <select
+            id="tenant"
+            value={selectedTenant}
+            onChange={(e) => setSelectedTenant(e.target.value)}
+            style={{ padding: '8px' }}
+          >
+            <option value="">All Tenants</option>
+            {tenants.map(label => (
+              <option key={label} value={label}>{label}</option>
+            ))}
+          </select>
+        </div>
+        <button onClick={fetchData} style={{ padding: '8px 16px' }}>Refresh</button>
+      </div>
+
+      {/* Reports Table */}
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #ddd' }}>
           <thead>
-            <tr>
-              <th>Time (UTC)</th>
-              <th>URL</th>
-              <th>Label</th>
-              <th>Reasons</th>
-              <th>Tenant</th>
-              <th>Actions</th>
+            <tr style={{ background: '#f5f5f5' }}>
+              <th style={{ padding: '12px', border: '1px solid #ddd', textAlign: 'left' }}>URL</th>
+              <th style={{ padding: '12px', border: '1px solid #ddd', textAlign: 'left' }}>Tenant</th>
+              <th style={{ padding: '12px', border: '1px solid #ddd', textAlign: 'left' }}>Reasons</th>
+              <th style={{ padding: '12px', border: '1px solid #ddd', textAlign: 'left' }}>Reported At</th>
             </tr>
           </thead>
           <tbody>
-            {items.map(it => (
-              <tr key={it.name}>
-                <td style={{whiteSpace:'nowrap'}}>{it.receivedAt || '—'}</td>
-                <td><div style={{maxWidth:520, overflowWrap:'anywhere'}}>{it.url}</div><div style={{color:'#666', fontSize:12}}>{it.pageUrl}</div></td>
-                <td>
-                  <span className={`pill ${it.label === 'High Risk' ? 'high-risk' : it.label === 'Caution' ? 'caution' : 'safe'}`}>
-                    {it.label || '—'}
-                  </span>
+            {filteredReports.map((report, index) => (
+              <tr key={report.id || index} style={{ borderBottom: '1px solid #ddd' }}>
+                <td style={{ padding: '12px', border: '1px solid #ddd' }}>
+                  <a href={report.url} target="_blank" rel="noopener noreferrer" style={{ color: '#0066cc' }}>
+                    {report.url}
+                  </a>
                 </td>
-                <td>{(it.reasons||[]).slice(0,4).map((r,i) => <span className="pill" key={i}>{r}</span>)}</td>
-                <td>{it.tenantKey || '—'}</td>
-                <td>
-                  <button className="btn" onClick={() => setSel(it)}>View JSON</button>
-                  <a className="btn" href={`/admin/api/report/${encodeURIComponent(it.name)}`} target="_blank">Download</a>
+                <td style={{ padding: '12px', border: '1px solid #ddd' }}>{report.tenantKey || '—'}</td>
+                <td style={{ padding: '12px', border: '1px solid #ddd' }}>
+                  {(report.reasons || []).slice(0, 4).map((r, i) => (
+                    <span key={i} style={{ 
+                      background: '#e0e0e0', 
+                      padding: '2px 6px', 
+                      borderRadius: '3px', 
+                      fontSize: '0.8em', 
+                      margin: '2px',
+                      display: 'inline-block'
+                    }}>
+                      {r}
+                    </span>
+                  ))}
+                </td>
+                <td style={{ padding: '12px', border: '1px solid #ddd' }}>
+                  {new Date(report.reportedAt).toLocaleString()}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+      </div>
+
+      {filteredReports.length === 0 && (
+        <div style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
+          No reports found matching your criteria.
+        </div>
       )}
-      {sel && (
-        <div className="modal-backdrop" onClick={() => setSel(null)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
-            <h3>Report JSON</h3>
-            <pre>{JSON.stringify(sel, null, 2)}</pre>
-            <div style={{display:'flex', gap:10}}>
-              <button className="btn" onClick={() => {
-                navigator.clipboard.writeText(JSON.stringify(sel, null, 2))
-              }}>Copy JSON</button>
-              <button className="btn" onClick={() => setSel(null)}>Close</button>
-            </div>
+
+      {/* Tenant Breakdown */}
+      {summary && summary.tenantBreakdown && (
+        <div style={{ marginTop: '40px' }}>
+          <h2>Tenant Breakdown</h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
+            {Object.entries(summary.tenantBreakdown).map(([tenant, count]) => (
+              <div key={tenant} style={{ background: '#f0f0f0', padding: '20px', borderRadius: '8px', textAlign: 'center' }}>
+                <h3>{tenant}</h3>
+                <div style={{ fontSize: '1.5em', fontWeight: 'bold' }}>{count}</div>
+                <div style={{ fontSize: '0.9em', color: '#666' }}>reports</div>
+              </div>
+            ))}
           </div>
         </div>
       )}
     </div>
-  )
-}
+  );
+};
 
-function Digests() {
-  const { data, loading, err } = useFetch<{items: Digest[]}>('/admin/api/digests', [])
-  return (
-    <div className="card">
-      {loading ? <p>Loading…</p> : err ? <p>Error: {err}</p> : (
-        <table>
-          <thead>
-            <tr>
-              <th>File</th>
-              <th>Updated</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {(data?.items||[]).map(d => (
-              <tr key={d.name}>
-                <td>{d.name}</td>
-                <td>{d.updatedAt || '—'}</td>
-                <td><a className="btn primary" href={`/admin/api/digest/${encodeURIComponent(d.name)}`} target="_blank">Open / Download</a></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </div>
-  )
-}
-
-export default function App() {
-  const [tab, setTab] = useState<'reports'|'digests'>('reports')
-  return (
-    <>
-      <div className="tabs">
-        <div className={`tab ${tab==='reports'?'active':''}`} onClick={() => setTab('reports')}>Reports</div>
-        <div className={`tab ${tab==='digests'?'active':''}`} onClick={() => setTab('digests')}>Weekly Digests</div>
-      </div>
-      {tab==='reports' ? <Reports /> : <Digests />}
-    </>
-  )
-}
+export default App;

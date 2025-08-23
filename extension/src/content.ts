@@ -15,15 +15,21 @@ type CloudScore = {
   label: string;
 }
 
-let settings: Settings = { enabled: true, minScore: 20, enableReporting: false, apiUrl: 'https://ysnpbaet5e.execute-api.us-east-1.amazonaws.com/Prod' };
+let settings: Settings = { 
+  enabled: true, 
+  minScore: 20, 
+  enableReporting: false, 
+  apiUrl: 'https://szyld5pw2d.execute-api.us-east-1.amazonaws.com/Prod' 
+};
 
 chrome.storage.sync.get(["enabled", "minScore", "enableReporting", "apiUrl"], (s) => {
   settings = { 
     enabled: s.enabled ?? true, 
     minScore: s.minScore ?? 20, 
     enableReporting: s.enableReporting ?? false,
-    apiUrl: s.apiUrl ?? 'https://ysnpbaet5e.execute-api.us-east-1.amazonaws.com/Prod'
+    apiUrl: s.apiUrl ?? 'https://szyld5pw2d.execute-api.us-east-1.amazonaws.com/Prod'
   };
+  console.log('PhishGuard settings loaded:', settings);
   scanAllLinks();
 });
 
@@ -40,6 +46,13 @@ async function getCloudScore(url: string, linkText: string | null): Promise<Clou
       new URL(url);
     } catch (e) {
       console.log('Malformed URL, skipping cloud scoring:', url);
+      return null;
+    }
+    
+    // Check if we're in a restricted context (like Gmail, LinkedIn, etc.)
+    const restrictedHosts = ['mail.google.com', 'www.linkedin.com', 'linkedin.com', 'outlook.office.com', 'outlook.live.com'];
+    if (restrictedHosts.includes(window.location.hostname)) {
+      console.log('Skipping cloud scoring in restricted context due to CSP restrictions:', window.location.hostname);
       return null;
     }
     
@@ -98,14 +111,24 @@ async function evaluateLink(a: HTMLAnchorElement) {
   
   let finalResult = localResult;
   
-  // If reporting is enabled, get cloud score and combine
-  if (settings.enableReporting) {
-    const cloudResult = await getCloudScore(href, text);
-    finalResult = combineScores(localResult, cloudResult);
+  // Check if we're in a restricted context where cloud scoring won't work
+  const restrictedHosts = ['mail.google.com', 'www.linkedin.com', 'linkedin.com', 'outlook.office.com', 'outlook.live.com'];
+  const isRestrictedContext = restrictedHosts.includes(window.location.hostname);
+  
+  // If reporting is enabled and we're not in a restricted context, try cloud scoring
+  if (settings.enableReporting && !isRestrictedContext) {
+    try {
+      const cloudResult = await getCloudScore(href, text);
+      if (cloudResult) {
+        finalResult = combineScores(localResult, cloudResult);
+      }
+    } catch (error) {
+      console.warn('Cloud scoring failed, using local score only:', error);
+    }
   }
   
   if (finalResult.score >= (settings.minScore || 20)) {
-    if (settings.enableReporting) {
+    if (settings.enableReporting && !isRestrictedContext) {
       attachBadgeWithReport(a, finalResult.label, finalResult.reasons);
     } else {
       attachBadge(a, finalResult.label, finalResult.reasons);

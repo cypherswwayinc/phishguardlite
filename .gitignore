@@ -1,0 +1,58 @@
+# Dependencies
+node_modules/
+*/node_modules/
+venv/
+env/
+.env
+
+# Build outputs
+dist/
+build/
+.aws-sam/
+aws-sam/.aws-sam/
+*.zip
+*.tar.gz
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# AWS
+.aws/
+aws-credentials.txt
+samconfig.toml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# Sensitive data
+secrets.json
+config.json
+.env.local
+.env.production
+
+# Test files (optional - remove if you want to keep them)
+test-*.html
+*-test.html

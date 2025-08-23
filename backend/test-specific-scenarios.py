@@ -1,110 +1,125 @@
 #!/usr/bin/env python3
 """
-Test specific phishing detection scenarios with PhishGuard API
+Test specific phishing detection scenarios against the PhishGuard Lite API
 """
 
 import requests
 import json
 
-# API base URL
-BASE_URL = "https://ysnpbaet5e.execute-api.us-east-1.amazonaws.com/Prod"
+# Replace with your actual API Gateway URL
+BASE_URL = "https://YOUR_API_ID.execute-api.YOUR_REGION.amazonaws.com/Prod"
 
-def test_safe_url():
-    """Test a safe URL"""
-    print("Testing safe URL: https://google.com")
-    data = {
-        "url": "https://google.com",
-        "linkText": "Google Search"
-    }
+def test_scenario(url, link_text, expected_score_range, description):
+    """Test a specific URL scoring scenario"""
     try:
-        response = requests.post(f"{BASE_URL}/score", json=data)
-        result = response.json()
-        print(f"Score: {result['score']}, Label: {result['label']}")
-        print(f"Reasons: {result['reasons']}")
-        return result
+        payload = {
+            "url": url,
+            "linkText": link_text
+        }
+        
+        response = requests.post(f"{BASE_URL}/score", json=payload)
+        
+        if response.status_code == 200:
+            data = response.json()
+            score = data.get('score', 0)
+            reasons = data.get('reasons', [])
+            label = data.get('label', 'Unknown')
+            
+            # Check if score is in expected range
+            min_score, max_score = expected_score_range
+            score_ok = min_score <= score <= max_score
+            
+            status = "✅ PASS" if score_ok else "❌ FAIL"
+            print(f"{status} {description}")
+            print(f"   URL: {url}")
+            print(f"   Score: {score} (Expected: {min_score}-{max_score})")
+            print(f"   Label: {label}")
+            print(f"   Reasons: {reasons}")
+            print()
+            
+            return score_ok
+        else:
+            print(f"❌ FAIL {description}")
+            print(f"   HTTP Error: {response.status_code}")
+            print(f"   Response: {response.text}")
+            print()
+            return False
+            
     except Exception as e:
-        print(f"Error: {e}")
-        return None
+        print(f"❌ FAIL {description}")
+        print(f"   Exception: {e}")
+        print()
+        return False
 
-def test_high_risk_tld():
-    """Test a URL with high-risk TLD"""
-    print("\nTesting high-risk TLD: https://suspicious-site.gq")
-    data = {
-        "url": "https://suspicious-site.gq",
-        "linkText": "Click here"
-    }
-    try:
-        response = requests.post(f"{BASE_URL}/score", json=data)
-        result = response.json()
-        print(f"Score: {result['score']}, Label: {result['label']}")
-        print(f"Reasons: {result['reasons']}")
-        return result
-    except Exception as e:
-        print(f"Error: {e}")
-        return None
-
-def test_url_shortener():
-    """Test a URL shortener"""
-    print("\nTesting URL shortener: https://bit.ly/example")
-    data = {
-        "url": "https://bit.ly/example",
-        "linkText": "Download here"
-    }
-    try:
-        response = requests.post(f"{BASE_URL}/score", json=data)
-        result = response.json()
-        print(f"Score: {result['score']}, Label: {result['label']}")
-        print(f"Reasons: {result['reasons']}")
-        return result
-    except Exception as e:
-        print(f"Error: {e}")
-        return None
-
-def test_domain_mismatch():
-    """Test link text domain mismatch"""
-    print("\nTesting domain mismatch: URL is google.com but text says 'PayPal'")
-    data = {
-        "url": "https://google.com",
-        "linkText": "PayPal - Click to verify your account"
-    }
-    try:
-        response = requests.post(f"{BASE_URL}/score", json=data)
-        result = response.json()
-        print(f"Score: {result['score']}, Label: {result['label']}")
-        print(f"Reasons: {result['reasons']}")
-        return result
-    except Exception as e:
-        print(f"Error: {e}")
-        return None
-
-def test_long_url():
-    """Test a very long URL"""
-    print("\nTesting long URL with many parameters")
-    long_url = "https://example.com/very/long/path/with/many/parameters?param1=value1&param2=value2&param3=value3&param4=value4&param5=value5&param6=value6&param7=value7&param8=value8&param9=value9&param10=value10&param11=value11&param12=value12&param13=value13&param14=value14&param15=value15"
-    data = {
-        "url": long_url,
-        "linkText": "Click here"
-    }
-    try:
-        response = requests.post(f"{BASE_URL}/score", json=data)
-        result = response.json()
-        print(f"Score: {result['score']}, Label: {result['label']}")
-        print(f"Reasons: {result['reasons']}")
-        return result
-    except Exception as e:
-        print(f"Error: {e}")
-        return None
+def main():
+    """Run all test scenarios"""
+    print("🧪 Testing PhishGuard Lite - Specific Scenarios")
+    print(f"🌐 Base URL: {BASE_URL}")
+    print("=" * 60)
+    
+    # Define test scenarios
+    scenarios = [
+        # High-risk TLDs (should score 40+)
+        ("https://example.zip", "Click here", (35, 45), "High-risk TLD (.zip)"),
+        ("https://suspicious.mov", "Download", (35, 45), "High-risk TLD (.mov)"),
+        ("https://phishing.gq", "Visit site", (35, 45), "High-risk TLD (.gq)"),
+        ("https://malware.cf", "Click here", (35, 45), "High-risk TLD (.cf)"),
+        
+        # URL shorteners (should score 20+)
+        ("https://bit.ly/suspicious", "Short link", (15, 25), "URL shortener (bit.ly)"),
+        ("https://t.co/malware", "Twitter link", (15, 25), "URL shortener (t.co)"),
+        ("https://tinyurl.com/phishing", "Tiny link", (15, 25), "URL shortener (tinyurl)"),
+        
+        # Lookalike domains (should score 35+)
+        ("https://g00gle.com", "Google", (30, 40), "Lookalike domain (g00gle)"),
+        ("https://paypa1.com", "PayPal", (30, 40), "Lookalike domain (paypa1)"),
+        ("https://faceb00k.com", "Facebook", (30, 40), "Lookalike domain (faceb00k)"),
+        
+        # Email obfuscation (should score 20+)
+        ("https://evil.com/account@secure-login", "Login", (15, 25), "Email obfuscation (@ in path)"),
+        ("https://phishing.com/user@admin-panel", "Admin", (15, 25), "Email obfuscation (@ in path)"),
+        
+        # Very long URLs (should score 10+)
+        ("https://suspicious.com/very-long-path-that-exceeds-the-normal-length-limits-and-should-trigger-the-length-detection-logic-because-it-is-much-longer-than-150-characters-which-is-the-threshold-for-very-long-urls", "Long link", (5, 15), "Very long URL path"),
+        
+        # Safe domains (should score 0-19)
+        ("https://google.com", "Google", (0, 19), "Safe domain (google.com)"),
+        ("https://github.com", "GitHub", (0, 19), "Safe domain (github.com)"),
+        ("https://stackoverflow.com", "Stack Overflow", (0, 19), "Safe domain (stackoverflow)"),
+        ("https://paypal.com", "PayPal", (0, 19), "Safe domain (paypal.com)")
+    ]
+    
+    print("🔍 Running test scenarios...\n")
+    
+    results = []
+    for url, link_text, expected_range, description in scenarios:
+        result = test_scenario(url, link_text, expected_range, description)
+        results.append((description, result))
+    
+    print("=" * 60)
+    print("📊 Test Results Summary:")
+    
+    passed = 0
+    total = len(results)
+    
+    for description, result in results:
+        status = "✅ PASS" if result else "❌ FAIL"
+        print(f"   {status} {description}")
+        if result:
+            passed += 1
+    
+    print(f"\n🎯 Overall: {passed}/{total} tests passed")
+    
+    if passed == total:
+        print("🎉 All tests passed! Your phishing detection is working correctly.")
+    else:
+        print("⚠️  Some tests failed. Check your scoring algorithm.")
+    
+    print("\n💡 Remember to:")
+    print("1. Replace YOUR_API_ID with your actual API Gateway ID")
+    print("2. Replace YOUR_REGION with your AWS region")
+    print("3. Ensure your backend is deployed and running")
+    print("4. Check the scoring logic in your backend code")
 
 if __name__ == "__main__":
-    print("PhishGuard API - Specific Scenario Tests")
-    print("=" * 50)
-    
-    # Test various scenarios
-    test_safe_url()
-    test_high_risk_tld()
-    test_url_shortener()
-    test_domain_mismatch()
-    test_long_url()
-    
-    print("\n" + "=" * 50)
-    print("All specific scenario tests completed!")
+    main()
