@@ -11,10 +11,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: extension
-
+    
     steps:
       - uses: actions/checkout@v4
 
@@ -22,19 +19,10 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          # Works with or without a lockfile
-          cache-dependency-path: |
-            extension/package-lock.json
-            extension/package.json
+          cache-dependency-path: extension/package-lock.json
 
-      - name: Print env & scripts
-        run: |
-          node -v
-          npm -v
-          test -f package.json && cat package.json || true
-          test -f package-lock.json && echo "lockfile present" || echo "no lockfile"
-
-      - name: Install deps
+      - name: Install dependencies
+        working-directory: extension
         run: |
           if [ -f package-lock.json ]; then
             npm ci
@@ -42,27 +30,32 @@ jobs:
             npm install
           fi
 
-      - name: Build
-        run: npm run build --if-present
+      - name: Build extension
+        working-directory: extension
+        run: npm run build
 
-      - name: Package ZIP
+      - name: Prepare extension files
+        working-directory: extension
+        run: |
+          # Copy necessary files to dist folder
+          cp manifest.json dist/
+          cp src/options/index.html dist/
+          cp -r public/icons dist/
+
+      - name: Create Chrome Web Store ZIP
+        working-directory: extension/dist
         run: |
           # Create ZIP with files at root level (Chrome Web Store requirement)
-          # The working directory is already 'extension', so we're in the right place
-          # Create ZIP directly from dist folder contents
-          cd dist
-          zip -r ../phishguard-lite-${GITHUB_REF_NAME}.zip *
-          # Move ZIP to the correct location for upload
-          mv ../phishguard-lite-${GITHUB_REF_NAME}.zip ./
+          zip -r phishguard-lite-${GITHUB_REF_NAME}.zip *
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: phishguard-lite-${{ github.ref_name }}
-          path: extension/phishguard-lite-${{ github.ref_name }}.zip
+          path: extension/dist/phishguard-lite-${{ github.ref_name }}.zip
 
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: extension/phishguard-lite-${{ github.ref_name }}.zip
+          files: extension/dist/phishguard-lite-${{ github.ref_name }}.zip
