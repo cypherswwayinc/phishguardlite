@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "PhishGuard Lite",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Inline phishing risk labels and one-click reporting. Local heuristics; report only on user action.",
   "action": {
     "default_title": "PhishGuard Lite"
@@ -24,7 +24,9 @@
     "service_worker": "background.js",
     "type": "module"
   },
-  "options_page": "index.html",
+  "options_ui": {
+    "page": "index.html"
+  },
   "content_scripts": [
     {
       "matches": [

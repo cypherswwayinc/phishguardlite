@@ -32,26 +32,35 @@ function setStatus(msg: string, ok = true) {
   }, 5000);
 }
 
-// Load settings from storage
-function loadSettings() {
+// Load settings from storage with fallback
+async function loadSettings() {
   console.log('Loading PhishGuard settings...');
   
-  chrome.storage.sync.get(["enabled", "minScore", "apiBase", "tenantKey", "enableReporting"], (result) => {
+  try {
+    // Try sync storage first (enterprise profiles)
+    let result = await chrome.storage.sync.get(["enabled", "minScore", "apiBase", "tenantKey", "enableReporting"]);
+    
+    // If sync storage fails or is empty, try local storage as fallback
+    if (chrome.runtime.lastError || Object.keys(result).length === 0) {
+      console.log('Sync storage failed, trying local storage fallback...');
+      result = await chrome.storage.local.get(["enabled", "minScore", "apiBase", "tenantKey", "enableReporting"]);
+    }
+    
     console.log('Settings loaded:', result);
     
-    try {
-      if (enabledToggle) enabledToggle.checked = result.enabled ?? true;
-      if (minScoreInput) minScoreInput.value = (result.minScore ?? 20).toString();
-      if (apiBaseInput) apiBaseInput.value = result.apiBase ?? DEFAULT_API_BASE;
-      if (tenantKeyInput) tenantKeyInput.value = result.tenantKey ?? '';
-      if (reportingToggle) reportingToggle.checked = result.enableReporting ?? false;
-      
-      console.log('Settings applied to UI');
-    } catch (error) {
-      console.error('Error applying settings to UI:', error);
-      setStatus('Error loading settings', false);
-    }
-  });
+    // Apply settings to UI with defaults
+    if (enabledToggle) enabledToggle.checked = result.enabled ?? true;
+    if (minScoreInput) minScoreInput.value = (result.minScore ?? 20).toString();
+    if (apiBaseInput) apiBaseInput.value = result.apiBase ?? DEFAULT_API_BASE;
+    if (tenantKeyInput) tenantKeyInput.value = result.tenantKey ?? '';
+    if (reportingToggle) reportingToggle.checked = result.enableReporting ?? false;
+    
+    console.log('Settings applied to UI');
+    
+  } catch (error) {
+    console.error('Error loading settings:', error);
+    setStatus('Error loading settings', false);
+  }
 }
 
 // Save settings to storage
@@ -73,13 +82,13 @@ function saveSettings() {
     
     console.log('Saving settings:', settings);
     
-    chrome.storage.sync.set(settings, () => {
-      if (chrome.runtime.lastError) {
-        console.error('Error saving settings:', chrome.runtime.lastError);
-        setStatus('Error saving settings: ' + chrome.runtime.lastError.message, false);
-      } else {
-        console.log('Settings saved successfully');
-        setStatus('Settings saved successfully!', true);
+    // Try to save to sync storage first, fallback to local if it fails
+    const saveToStorage = async () => {
+      try {
+        // Try sync storage first
+        await chrome.storage.sync.set(settings);
+        console.log('Settings saved to sync storage successfully');
+        setStatus('Settings saved successfully! ✓', true);
         
         // Show restrictions warning if reporting is enabled
         if (settings.enableReporting) {
@@ -87,12 +96,28 @@ function saveSettings() {
             setStatus('Note: Reporting may not work on Gmail, LinkedIn, and other corporate sites due to security restrictions. Test on regular websites.', false);
           }, 2000);
         }
+        
+      } catch (error) {
+        console.log('Sync storage failed, trying local storage fallback...');
+        
+        try {
+          // Fallback to local storage
+          await chrome.storage.local.set(settings);
+          console.log('Settings saved to local storage successfully');
+          setStatus('Settings saved to local storage ✓', true);
+          
+        } catch (localError) {
+          console.error('Both storage methods failed:', localError);
+          setStatus('Error saving settings: ' + localError, false);
+        }
       }
       
       // Re-enable save button
       saveBtn.disabled = false;
       saveBtn.textContent = 'Save';
-    });
+    };
+    
+    saveToStorage();
     
   } catch (error) {
     console.error('Error in saveSettings:', error);
