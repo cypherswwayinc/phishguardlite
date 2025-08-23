@@ -52,6 +52,8 @@ jobs:
           # Create ZIP directly from dist folder contents
           cd dist
           zip -r ../phishguard-lite-${GITHUB_REF_NAME}.zip *
+          # Move ZIP to the correct location for upload
+          mv ../phishguard-lite-${GITHUB_REF_NAME}.zip ./
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
