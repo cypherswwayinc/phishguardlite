@@ -51,9 +51,9 @@ async function loadSettings() {
     console.log('Settings loaded:', result);
     
     // Apply settings to UI with defaults
-    if (enabledToggle) enabledToggle.checked = result.enabled ?? true;
-    if (minScoreInput) minScoreInput.value = (result.minScore ?? 20).toString();
-    if (apiBaseInput) apiBaseInput.value = result.apiBase ?? DEFAULT_API_BASE;
+    if (enabledToggle) enabledToggle.checked = result.enabled ?? true; // Default: ON
+    if (minScoreInput) minScoreInput.value = (result.minScore ?? 20).toString(); // Default: 20
+    if (apiBaseInput) apiBaseInput.value = result.apiBase ?? DEFAULT_API_BASE; // Default: Custom domain
     if (tenantKeyInput) tenantKeyInput.value = result.tenantKey ?? '';
     if (reportingToggle) reportingToggle.checked = result.enableReporting ?? false;
     
@@ -75,9 +75,9 @@ function saveSettings() {
     saveBtn.textContent = 'Saving...';
     
     const settings = {
-      enabled: enabledToggle?.checked ?? true,
-      minScore: parseInt(minScoreInput?.value ?? '20'),
-      apiBase: apiBaseInput?.value?.trim() || DEFAULT_API_BASE,
+      enabled: enabledToggle?.checked ?? true, // Default: ON
+      minScore: parseInt(minScoreInput?.value ?? '20'), // Default: 20
+      apiBase: apiBaseInput?.value?.trim() || DEFAULT_API_BASE, // Default: Custom domain
       tenantKey: tenantKeyInput?.value?.trim() || '',
       enableReporting: reportingToggle?.checked ?? false
     };
@@ -144,12 +144,14 @@ document.addEventListener('DOMContentLoaded', () => {
       saveBtn.addEventListener('click', saveSettings);
     }
     
-    // Add info about restrictions
+    // Add info about restrictions and defaults
     const infoDiv = document.createElement('div');
     infoDiv.innerHTML = `
       <div style="margin-top: 20px; padding: 15px; background-color: #e7f3ff; border: 1px solid #b3d9ff; border-radius: 5px;">
-        <h4>ℹ️ Important Notes:</h4>
+        <h4>Important Notes:</h4>
         <ul style="margin: 5px 0; padding-left: 20px;">
+          <li><strong>Default Settings:</strong> Extension is enabled by default with minimum score 20</li>
+          <li><strong>API URL:</strong> Automatically set to your custom domain (phishguard.cyphersway.com)</li>
           <li><strong>Corporate Sites:</strong> Gmail, LinkedIn, Outlook have security restrictions</li>
           <li><strong>Local Detection:</strong> Basic phishing detection works everywhere</li>
           <li><strong>Cloud Scoring:</strong> Enhanced detection when reporting is enabled</li>

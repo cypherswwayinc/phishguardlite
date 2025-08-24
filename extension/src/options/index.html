@@ -25,7 +25,7 @@
 
   <div class="row switch">
     <input type="checkbox" id="enabled" />
-    <label for="enabled">Enable detection</label>
+    <label for="enabled">Enable detection (Default: ON)</label>
   </div>
 
   <div class="row switch">
@@ -34,13 +34,14 @@
   </div>
 
   <div class="row">
-    <label for="minScore">Minimum score</label>
+    <label for="minScore">Minimum score (Default: 20)</label>
     <input type="number" id="minScore" min="0" max="100" step="1" />
   </div>
 
   <div class="row">
     <label for="apiBase">API Base URL</label>
-    <input type="text" id="apiBase" placeholder="https://<api-id>.execute-api.<region>.amazonaws.com/Prod" />
+    <input type="text" id="apiBase" placeholder="https://phishguard.cyphersway.com" />
+    <div class="hint">Default: Your custom domain from config.ts</div>
   </div>
 
   <div class="row">
