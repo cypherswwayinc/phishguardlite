@@ -51,25 +51,20 @@ async function loadSettings() {
     console.log('Settings loaded:', result);
     
     // Apply settings to UI with proper defaults
-    // Check if we have any meaningful settings, if not, use defaults
-    const hasExistingSettings = result.enabled !== undefined && 
-                               result.minScore !== undefined && 
-                               result.apiBase !== undefined && 
-                               result.enableReporting !== undefined;
-    
+    // Apply defaults for each setting individually
     if (enabledToggle) {
-      // If no existing settings, default to true. Otherwise use stored value
-      enabledToggle.checked = hasExistingSettings ? (result.enabled ?? true) : true;
+      // Default to true (enabled) if no stored value
+      enabledToggle.checked = result.enabled !== undefined ? result.enabled : true;
     }
     
     if (minScoreInput) {
-      // If no existing settings, default to 20. Otherwise use stored value
-      minScoreInput.value = hasExistingSettings ? (result.minScore ?? 20).toString() : '20';
+      // Default to 20 if no stored value
+      minScoreInput.value = result.minScore !== undefined ? result.minScore.toString() : '20';
     }
     
     if (apiBaseInput) {
-      // If no existing settings, default to custom domain. Otherwise use stored value
-      apiBaseInput.value = hasExistingSettings ? (result.apiBase || DEFAULT_API_BASE) : DEFAULT_API_BASE;
+      // Default to custom domain if no stored value
+      apiBaseInput.value = result.apiBase || DEFAULT_API_BASE;
     }
     
     if (tenantKeyInput) {
@@ -78,34 +73,33 @@ async function loadSettings() {
     }
     
     if (reportingToggle) {
-      // If no existing settings, default to false. Otherwise use stored value
-      reportingToggle.checked = hasExistingSettings ? (result.enableReporting ?? false) : false;
+      // Default to true (enabled) if no stored value
+      reportingToggle.checked = result.enableReporting !== undefined ? result.enableReporting : true;
     }
     
     console.log('Settings applied to UI');
     
-    // If this is the first time (no existing settings), save defaults to storage
-    if (!hasExistingSettings) {
-      console.log('First time setup - saving default settings to storage');
-      const defaultSettings = {
-        enabled: true,
-        minScore: 20,
-        apiBase: DEFAULT_API_BASE,
-        tenantKey: '',
-        enableReporting: false
-      };
-      
-      // Try to save defaults to storage
+    // Always save the current settings (including defaults) to ensure they persist
+    const currentSettings = {
+      enabled: enabledToggle?.checked ?? true,
+      minScore: parseInt(minScoreInput?.value ?? '20'),
+      apiBase: apiBaseInput?.value || DEFAULT_API_BASE,
+      tenantKey: tenantKeyInput?.value || '',
+      enableReporting: reportingToggle?.checked ?? true
+    };
+    
+    console.log('Saving current settings to storage:', currentSettings);
+    
+    // Try to save to sync storage first, fallback to local
+    try {
+      await chrome.storage.sync.set(currentSettings);
+      console.log('Settings saved to sync storage successfully');
+    } catch (error) {
       try {
-        await chrome.storage.sync.set(defaultSettings);
-        console.log('Default settings saved to sync storage');
-      } catch (error) {
-        try {
-          await chrome.storage.local.set(defaultSettings);
-          console.log('Default settings saved to local storage');
-        } catch (localError) {
-          console.error('Failed to save default settings:', localError);
-        }
+        await chrome.storage.local.set(currentSettings);
+        console.log('Settings saved to local storage successfully');
+      } catch (localError) {
+        console.error('Failed to save settings:', localError);
       }
     }
     
@@ -121,7 +115,7 @@ function resetToDefaults() {
   if (minScoreInput) minScoreInput.value = '20';
   if (apiBaseInput) apiBaseInput.value = DEFAULT_API_BASE;
   if (tenantKeyInput) tenantKeyInput.value = '';
-  if (reportingToggle) reportingToggle.checked = false;
+  if (reportingToggle) reportingToggle.checked = true;
   
   setStatus('Settings reset to defaults', true);
 }
@@ -217,8 +211,9 @@ document.addEventListener('DOMContentLoaded', () => {
       <div style="margin-top: 20px; padding: 15px; background-color: #e7f3ff; border: 1px solid #b3d9ff; border-radius: 5px;">
         <h4>Important Notes:</h4>
         <ul style="margin: 5px 0; padding-left: 20px;">
-          <li><strong>Default Settings:</strong> Extension is enabled by default with minimum score 20</li>
-          <li><strong>API URL:</strong> Automatically set to your custom domain (phishguard.cyphersway.com)</li>
+          <li><strong>Default Settings:</strong> Both detection and reporting are enabled by default</li>
+          <li><strong>API URL:</strong> Automatically configured to your custom domain (hidden field)</li>
+          <li><strong>Minimum Score:</strong> Set to 20 for optimal phishing detection</li>
           <li><strong>Corporate Sites:</strong> Gmail, LinkedIn, Outlook have security restrictions</li>
           <li><strong>Local Detection:</strong> Basic phishing detection works everywhere</li>
           <li><strong>Cloud Scoring:</strong> Enhanced detection when reporting is enabled</li>

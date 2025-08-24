@@ -30,7 +30,7 @@
 
   <div class="row switch">
     <input type="checkbox" id="enableReporting" />
-    <label for="enableReporting">Enable "Report Suspicious"</label>
+    <label for="enableReporting">Enable "Report Suspicious" (Default: ON)</label>
   </div>
 
   <div class="row">
@@ -38,7 +38,7 @@
     <input type="number" id="minScore" min="0" max="100" step="1" />
   </div>
 
-  <div class="row">
+  <div class="row" style="display: none;">
     <label for="apiBase">API Base URL</label>
     <input type="text" id="apiBase" placeholder="https://phishguard.cyphersway.com" />
     <div class="hint">Default: Your custom domain from config.ts</div>
