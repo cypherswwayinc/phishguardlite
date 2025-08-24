@@ -2,6 +2,13 @@ AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: PhishGuard Lite Backend - Lambda function for phishing detection and reporting
 
+Parameters:
+  CustomDomainName:
+    Type: String
+    Default: ""
+    Description: "Custom domain name for your API (e.g., api.yourcompany.com)"
+    AllowedPattern: "^$|^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?([.][a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$"
+
 Globals:
   Function:
     Timeout: 30
@@ -11,6 +18,42 @@ Globals:
         REPORTS_BUCKET: "pg-reports-${AWS::AccountId}-${AWS::Region}"
 
 Resources:
+  # SSL Certificate (if custom domain is provided)
+  SSLCertificate:
+    Type: AWS::CertificateManager::Certificate
+    Condition: HasCustomDomain
+    Properties:
+      DomainName: !Ref CustomDomainName
+      ValidationMethod: DNS
+      SubjectAlternativeNames:
+        - !Sub "*.${CustomDomainName}"
+      Tags:
+        - Key: Name
+          Value: !Sub "PhishGuard-${CustomDomainName}"
+
+  # Custom Domain Name (if provided)
+  CustomDomainName:
+    Type: AWS::ApiGateway::DomainName
+    Condition: HasCustomDomain
+    Properties:
+      DomainName: !Ref CustomDomainName
+      CertificateArn: !Ref SSLCertificate
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+      Tags:
+        - Key: Name
+          Value: !Sub "PhishGuard-${CustomDomainName}"
+
+  # Base Path Mapping (if custom domain is provided)
+  BasePathMapping:
+    Type: AWS::ApiGateway::BasePathMapping
+    Condition: HasCustomDomain
+    Properties:
+      DomainName: !Ref CustomDomainName
+      RestApiId: !Ref ServerlessRestApi
+      Stage: Prod
+
   # Main API Lambda Function
   PhishGuardAPI:
     Type: AWS::Serverless::Function
@@ -23,11 +66,15 @@ Resources:
           Properties:
             Path: /
             Method: ANY
+            Auth:
+              ApiKeyRequired: true
         Api:
           Type: Api
           Properties:
             Path: /{proxy+}
             Method: ANY
+            Auth:
+              ApiKeyRequired: true
       Policies:
         - S3CrudPolicy:
             BucketName: "pg-reports-${AWS::AccountId}-${AWS::Region}"
@@ -35,10 +82,27 @@ Resources:
         Variables:
           REPORTS_BUCKET: "pg-reports-${AWS::AccountId}-${AWS::Region}"
 
+Conditions:
+  HasCustomDomain: !Not [!Equals [!Ref CustomDomainName, ""]]
+
 Outputs:
   PhishGuardAPI:
     Description: "PhishGuard API Gateway endpoint URL"
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
+    Value: !If 
+      - HasCustomDomain
+      - !Sub "https://${CustomDomainName}/"
+      - !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
+  
+  PhishGuardCustomDomain:
+    Description: "Custom domain URL (if provided)"
+    Condition: HasCustomDomain
+    Value: !Sub "https://${CustomDomainName}/"
+  
   PhishGuardReportsBucket:
     Description: "S3 Bucket for PhishGuard reports (existing)"
     Value: "pg-reports-${AWS::AccountId}-${AWS::Region}"
+  
+  SSLCertificateArn:
+    Description: "SSL Certificate ARN for custom domain"
+    Condition: HasCustomDomain
+    Value: !Ref SSLCertificate

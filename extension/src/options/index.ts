@@ -1,5 +1,7 @@
 // Robust Options logic for PhishGuard Lite
-const DEFAULT_API_BASE = "https://szyld5pw2d.execute-api.us-east-1.amazonaws.com/Prod";
+import { getApiBaseUrl } from '../../config';
+
+const DEFAULT_API_BASE = getApiBaseUrl();
 
 // Get DOM elements
 const enabledToggle = document.getElementById('enabled') as HTMLInputElement | null;

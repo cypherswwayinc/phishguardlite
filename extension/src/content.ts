@@ -1,6 +1,7 @@
 // src/content.ts
 import { scoreUrl } from './lib/scoring'
 import { attachBadge, attachBadgeWithReport } from './lib/utils'
+import { getApiBaseUrl } from '../config'
 
 type Settings = {
   enabled?: boolean;
@@ -19,7 +20,7 @@ let settings: Settings = {
   enabled: true, 
   minScore: 20, 
   enableReporting: false, 
-  apiUrl: 'https://szyld5pw2d.execute-api.us-east-1.amazonaws.com/Prod' 
+  apiUrl: getApiBaseUrl()
 };
 
 chrome.storage.sync.get(["enabled", "minScore", "enableReporting", "apiUrl"], (s) => {
@@ -27,7 +28,7 @@ chrome.storage.sync.get(["enabled", "minScore", "enableReporting", "apiUrl"], (s
     enabled: s.enabled ?? true, 
     minScore: s.minScore ?? 20, 
     enableReporting: s.enableReporting ?? false,
-    apiUrl: s.apiUrl ?? 'https://szyld5pw2d.execute-api.us-east-1.amazonaws.com/Prod'
+    apiUrl: s.apiUrl ?? getApiBaseUrl()
   };
   console.log('PhishGuard settings loaded:', settings);
   scanAllLinks();

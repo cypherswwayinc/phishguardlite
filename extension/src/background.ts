@@ -1,4 +1,6 @@
-const DEFAULT_API = "https://szyld5pw2d.execute-api.us-east-1.amazonaws.com/Prod";
+import { getApiBaseUrl } from '../config';
+
+const DEFAULT_API = getApiBaseUrl();
 // src/background.ts
 // Handles "Report Suspicious" requests by posting to backend /report
 
