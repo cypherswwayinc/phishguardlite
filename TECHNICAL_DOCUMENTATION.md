@@ -1,6 +1,6 @@
 # PhishGuard Lite - Complete Technical Documentation
 
-## 📋 **Table of Contents**
+## Table of Contents
 1. [System Overview](#system-overview)
 2. [Tech Stack](#tech-stack)
 3. [AWS Infrastructure](#aws-infrastructure)
@@ -14,35 +14,36 @@
 
 ---
 
-## 🏗️ **System Overview**
+## System Overview
 
 **PhishGuard Lite** is a comprehensive phishing detection system that combines browser extension technology with cloud-based AI scoring to protect users from malicious links.
 
-### **Key Features:**
-- 🛡️ **Real-time Detection**: Analyzes links as you browse
-- 🎯 **Local + Cloud Scoring**: Combines local heuristics with cloud AI
-- 📊 **One-click Reporting**: Easy reporting of suspicious links
-- 👥 **Multi-tenant Support**: Organization-based reporting
-- 📱 **Cross-platform**: Works on Gmail, LinkedIn, Outlook, and more
-- 🔒 **Privacy-focused**: Reports only when user explicitly requests
+### Key Features:
+- **Real-time Detection**: Analyzes links as you browse
+- **Local + Cloud Scoring**: Combines local heuristics with cloud AI
+- **One-click Reporting**: Easy reporting of suspicious links
+- **Multi-tenant Support**: Organization-based reporting
+- **Cross-platform**: Works on Gmail, LinkedIn, Outlook, and more
+- **Privacy-focused**: Reports only when user explicitly requests
 
-### **Architecture:**
+### Architecture:
 ```
 Browser Extension → Cloud API → AI Scoring → S3 Storage → Admin Dashboard
 ```
 
 ---
 
-## 🛠️ **Tech Stack**
+## Tech Stack
 
-### **Frontend (Browser Extension)**
+### Frontend (Browser Extension)
 - **Language**: TypeScript
 - **Framework**: Chrome Extension Manifest V3
 - **Build Tool**: Vite
 - **Storage**: Chrome Storage Sync API
 - **UI**: Vanilla HTML/CSS/JS
+- **Configuration**: Centralized config system for API endpoints
 
-### **Backend (Cloud API)**
+### Backend (Cloud API)
 - **Language**: Python 3.9
 - **Framework**: FastAPI
 - **Server**: AWS Lambda
@@ -50,7 +51,7 @@ Browser Extension → Cloud API → AI Scoring → S3 Storage → Admin Dashboar
 - **Storage**: Amazon S3
 - **Deployment**: AWS SAM (Serverless Application Model)
 
-### **Infrastructure**
+### Infrastructure
 - **Cloud Provider**: AWS (Amazon Web Services)
 - **IaC**: CloudFormation via SAM
 - **Monitoring**: CloudWatch Logs
@@ -58,64 +59,64 @@ Browser Extension → Cloud API → AI Scoring → S3 Storage → Admin Dashboar
 
 ---
 
-## ☁️ **AWS Infrastructure**
+## AWS Infrastructure
 
-### **Deployed Resources**
+### Deployed Resources
 
-#### **Lambda Function**
+#### Lambda Function
 - **Name**: `PhishGuardAPI`
 - **Runtime**: `python3.9`
 - **Handler**: `app.lambda_handler`
 - **ARN**: `arn:aws:lambda:us-east-1:ACCOUNT_ID:function:phishguard-lite-backend-PhishGuardAPI-XXXXX`
 
-#### **API Gateway**
+#### API Gateway
 - **Name**: `phishguard-lite-backend`
 - **Stage**: `Prod`
 - **Base URL**: `https://API_ID.execute-api.us-east-1.amazonaws.com/Prod/`
 
-#### **S3 Bucket**
+#### S3 Bucket
 - **Name**: `pg-reports-ACCOUNT_ID-us-east-1`
 - **Region**: `us-east-1`
 - **Purpose**: Store phishing report data
 
-#### **IAM Role**
+#### IAM Role
 - **Name**: `phishguard-lite-backend-PhishGuardAPIRole-XXXXX`
 
-#### **CloudFormation Stack**
+#### CloudFormation Stack
 - **Name**: `phishguard-lite-backend`
 - **Status**: `UPDATE_COMPLETE`
 
 ---
 
-## 👥 **User Roles & Permissions**
+## User Roles & Permissions
 
-### **End Users**
+### End Users
 - **Permissions**: Browse websites, see phishing warnings, report suspicious links
 - **Data Access**: Only their own reports (if enabled)
 - **Settings**: Configure extension preferences
 
-### **Administrators**
+### Administrators
 - **Permissions**: View all reports, access admin dashboard, manage system
 - **Data Access**: All reports across all tenants
 - **Capabilities**: Export data, view statistics, monitor system health
 
-### **Developers**
+### Developers
 - **Permissions**: Deploy updates, modify code, access logs
 - **Data Access**: Development and testing environments
 - **Capabilities**: Full system access for development
 
 ---
 
-## 🔌 **API Reference**
+## API Reference
 
-### **Base URL**
+### Base URL
 ```
 https://API_ID.execute-api.us-east-1.amazonaws.com/Prod
 ```
 
-### **Endpoints**
+### Endpoints
 
-#### **Health Check**
+#### Health Check
 ```http
 GET /health
 ```
@@ -129,7 +130,7 @@ GET /health
 }
 ```
 
-#### **URL Scoring**
+#### URL Scoring
 ```http
 POST /score
 ```
@@ -149,7 +150,7 @@ POST /score
 }
 ```
 
-#### **Report Submission**
+#### Report Submission
 ```http
 POST /report
 ```
@@ -174,7 +175,7 @@ POST /report
 }
 ```
 
-#### **Admin - List Reports**
+#### Admin - List Reports
 ```http
 GET /admin/api/reports?limit=200
 ```
@@ -188,7 +189,7 @@ GET /admin/api/reports?limit=200
 }
 ```
 
-#### **Admin - Reports Summary**
+#### Admin - Reports Summary
 ```http
 GET /admin/api/reports/summary
 ```
@@ -209,20 +210,20 @@ GET /admin/api/reports/summary
 
 ---
 
-## 📱 **User Guide**
+## User Guide
 
-### **Installation**
+### Installation
 1. **Download Extension**: Load unpacked from the `dist` folder
 2. **Configure Settings**: Set API URL and tenant key
 3. **Enable Features**: Turn on detection and reporting
 
-### **Daily Usage**
+### Daily Usage
 1. **Browse Normally**: Extension works in background
 2. **See Warnings**: Risk labels appear next to suspicious links
 3. **Report Links**: Click report button on suspicious links
 4. **Check Settings**: Access options page for configuration
 
-### **Settings Configuration**
+### Settings Configuration
 - **Enable Extension**: Turn phishing detection on/off
 - **Minimum Score**: Set threshold for warnings (default: 20)
 - **API Base URL**: Your backend API endpoint
@@ -231,21 +232,21 @@ GET /admin/api/reports/summary
 
 ---
 
-## 👨‍💼 **Admin Guide**
+## Admin Guide
 
-### **Accessing Admin Dashboard**
+### Accessing Admin Dashboard
 1. **Open Dashboard**: Navigate to your admin dashboard URL
 2. **View Statistics**: See total reports, today's count, active tenants
 3. **Browse Reports**: View detailed report information
 4. **Export Data**: Download reports for analysis
 
-### **Dashboard Features**
+### Dashboard Features
 - **Real-time Updates**: Auto-refresh every 30 seconds
 - **Search & Filter**: Find specific reports or time periods
 - **Detailed Views**: Expand reports to see full context
 - **Tenant Management**: Monitor usage across organizations
 
-### **System Monitoring**
+### System Monitoring
 - **API Health**: Check backend status
 - **Storage Usage**: Monitor S3 bucket usage
 - **Error Logs**: Review any system issues
@@ -253,9 +254,9 @@ GET /admin/api/reports/summary
 
 ---
 
-## 👨‍💻 **Development Guide**
+## Development Guide
 
-### **Local Development Setup**
+### Local Development Setup
 ```bash
 # Clone repository
 git clone <your-repo>
@@ -271,7 +272,7 @@ pip install -r requirements.txt
 uvicorn app:app --reload --host 0.0.0.0 --port 8000
 ```
 
-### **Extension Development**
+### Extension Development
 ```bash
 # Install dependencies
 cd extension
@@ -284,7 +285,7 @@ npm run dev
 npm run build
 ```
 
-### **Testing**
+### Testing
 ```bash
 # Test backend API
 python test-api.py
@@ -298,28 +299,28 @@ python test-specific-scenarios.py
 
 ---
 
-## 🚀 **Deployment Guide**
+## Deployment Guide
 
-### **Prerequisites**
+### Prerequisites
 - AWS CLI configured
 - Docker running (for SAM build)
 - Python 3.9+ installed
 - Node.js 18+ installed
 
-### **Backend Deployment**
+### Backend Deployment
 ```bash
 cd backend
 ./deploy.sh
 ```
 
-### **Extension Deployment**
+### Extension Deployment
 ```bash
 cd extension
 npm run build
 # Copy dist folder contents to Chrome Web Store or distribute manually
 ```
 
-### **Environment Configuration**
+### Environment Configuration
 ```bash
 # Set environment variables
 export S3_BUCKET=your-reports-bucket
@@ -328,29 +329,29 @@ export AWS_REGION=us-east-1
 
 ---
 
-## 📊 **Monitoring & Troubleshooting**
+## Monitoring & Troubleshooting
 
-### **Common Issues**
+### Common Issues
 
-#### **Extension Not Working**
+#### Extension Not Working
 - Check if extension is loaded in Chrome
 - Verify API URL in settings
 - Check browser console for errors
 - Ensure backend is running
 
-#### **API Errors**
+#### API Errors
 - Verify AWS credentials
 - Check Lambda function logs
 - Ensure S3 bucket exists and is accessible
 - Verify IAM role permissions
 
-#### **Reporting Issues**
+#### Reporting Issues
 - Check if reporting is enabled in extension
 - Verify tenant key is set
 - Check S3 bucket permissions
 - Review CloudWatch logs
 
-### **Logs & Debugging**
+### Logs & Debugging
 ```bash
 # View Lambda logs
 aws logs tail phishguard-lite-backend-PhishGuardAPI-XXXXX --since 1h
@@ -362,7 +363,7 @@ aws s3 ls s3://your-reports-bucket/
 curl https://your-api.execute-api.us-east-1.amazonaws.com/Prod/health
 ```
 
-### **Performance Monitoring**
+### Performance Monitoring
 - **Lambda Duration**: Monitor function execution time
 - **API Gateway Latency**: Track response times
 - **S3 Access Patterns**: Monitor storage usage
@@ -370,21 +371,21 @@ curl https://your-api.execute-api.us-east-1.amazonaws.com/Prod/health
 
 ---
 
-## 🔒 **Security Considerations**
+## Security Considerations
 
-### **Data Protection**
+### Data Protection
 - **Encryption**: All data encrypted in transit and at rest
 - **Access Control**: IAM roles with minimal required permissions
 - **Audit Logging**: CloudTrail for API access monitoring
 - **Data Retention**: Configurable report retention policies
 
-### **Privacy Features**
+### Privacy Features
 - **User Consent**: Reporting only when explicitly requested
 - **Data Minimization**: Store only necessary information
 - **Tenant Isolation**: Separate data by organization
 - **GDPR Compliance**: Right to delete and export data
 
-### **Infrastructure Security**
+### Infrastructure Security
 - **VPC Isolation**: Lambda functions in private subnets
 - **Security Groups**: Restrict network access
 - **IAM Policies**: Principle of least privilege
@@ -392,20 +393,20 @@ curl https://your-api.execute-api.us-east-1.amazonaws.com/Prod/health
 
 ---
 
-## 📈 **Scaling & Future Enhancements**
+## Scaling & Future Enhancements
 
-### **Current Capacity**
+### Current Capacity
 - **Lambda**: 512MB memory, 30s timeout
 - **API Gateway**: 10,000 requests/second
 - **S3**: Unlimited storage, 5,500 requests/second
 
-### **Scaling Strategies**
+### Scaling Strategies
 - **Auto-scaling**: Lambda functions scale automatically
 - **CDN**: CloudFront for global distribution
 - **Database**: RDS for complex queries
 - **Caching**: ElastiCache for performance
 
-### **Future Features**
+### Future Features
 - **Machine Learning**: Enhanced phishing detection
 - **Real-time Alerts**: Instant notification system
 - **Integration**: SIEM and security tools
@@ -413,42 +414,44 @@ curl https://your-api.execute-api.us-east-1.amazonaws.com/Prod/health
 
 ---
 
-## 📞 **Support & Resources**
+## Support & Resources
 
-### **Documentation**
+### Documentation
 - **README.md**: Quick start guide
 - **TECHNICAL_DOCUMENTATION.md**: Comprehensive technical details
 - **DEPLOYMENT.md**: Step-by-step deployment instructions
 
-### **Community**
+### Community
 - **GitHub Issues**: Report bugs and request features
 - **Discussions**: Community support and ideas
 - **Contributing**: Guidelines for contributors
 
-### **Contact**
+### Contact
 - **Email**: [Your Contact Email]
 - **GitHub**: [Your GitHub Profile]
 - **Documentation**: [Your Docs Site]
 
 ---
 
-## 📝 **Changelog**
+## Changelog
 
-### **Version 0.2.1 (Current)**
-- ✅ **Admin Dashboard**: Full reporting interface
-- ✅ **S3 Integration**: Cloud storage for reports
-- ✅ **Multi-tenant Support**: Organization-based reporting
-- ✅ **Enhanced Detection**: Local + cloud scoring
-- ✅ **CSP Compliance**: Works on restricted sites
+### Version 0.2.1 (Current)
+- **Admin Dashboard**: Full reporting interface
+- **S3 Integration**: Cloud storage for reports
+- **Multi-tenant Support**: Organization-based reporting
+- **Enhanced Detection**: Local + cloud scoring
+- **CSP Compliance**: Works on restricted sites
+- **Configuration System**: Centralized API endpoint management
+- **Security Hardening**: Removed all hardcoded AWS identifiers
 
-### **Version 0.1.0**
-- ✅ **Basic Extension**: Phishing detection
-- ✅ **Local Scoring**: Basic heuristics
-- ✅ **Simple Reporting**: Basic report submission
+### Version 0.1.0
+- **Basic Extension**: Phishing detection
+- **Local Scoring**: Basic heuristics
+- **Simple Reporting**: Basic report submission
 
 ---
 
-## 🎯 **Getting Started**
+## Getting Started
 
 1. **Clone Repository**: `git clone <your-repo>`
 2. **Deploy Backend**: Follow deployment guide
@@ -457,4 +460,4 @@ curl https://your-api.execute-api.us-east-1.amazonaws.com/Prod/health
 5. **Configure Settings**: Set API URL and tenant key
 6. **Start Using**: Browse and detect phishing
 
-**Welcome to PhishGuard Lite! 🛡️** 
+**Welcome to PhishGuard Lite!** 
