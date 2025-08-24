@@ -3,13 +3,13 @@ import { getApiBaseUrl } from '../../config';
 
 const DEFAULT_API_BASE = getApiBaseUrl();
 
-// Get DOM elements
-const enabledToggle = document.getElementById('enabled') as HTMLInputElement | null;
-const minScoreInput = document.getElementById('minScore') as HTMLInputElement | null;
-const apiBaseInput = document.getElementById('apiBase') as HTMLInputElement | null;
-const tenantKeyInput = document.getElementById('tenantKey') as HTMLInputElement | null;
-const reportingToggle = document.getElementById('enableReporting') as HTMLInputElement | null;
-const saveBtn = document.getElementById('save') as HTMLButtonElement | null;
+// Global variables for DOM elements
+let enabledToggle: HTMLInputElement | null = null;
+let minScoreInput: HTMLInputElement | null = null;
+let apiBaseInput: HTMLInputElement | null = null;
+let tenantKeyInput: HTMLInputElement | null = null;
+let reportingToggle: HTMLInputElement | null = null;
+let saveBtn: HTMLButtonElement | null = null;
 let statusDiv: HTMLDivElement | null = null;
 
 // Helper function to safely get elements
@@ -189,8 +189,10 @@ function saveSettings() {
       }
       
       // Re-enable save button
-      saveBtn.disabled = false;
-      saveBtn.textContent = 'Save';
+      if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Save';
+      }
     };
     
     saveToStorage();
@@ -200,8 +202,10 @@ function saveSettings() {
     setStatus('Error saving settings: ' + error, false);
     
     // Re-enable save button
-    saveBtn.disabled = false;
-    saveBtn.textContent = 'Save';
+    if (saveBtn) {
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Save';
+    }
   }
 }
 
@@ -210,31 +214,61 @@ document.addEventListener('DOMContentLoaded', () => {
   console.log('PhishGuard options page loaded');
   
   try {
-    // Get the status div element after DOM is loaded
+    // Get all DOM elements after DOM is loaded
+    enabledToggle = document.getElementById('enabled') as HTMLInputElement | null;
+    minScoreInput = document.getElementById('minScore') as HTMLInputElement | null;
+    apiBaseInput = document.getElementById('apiBase') as HTMLInputElement | null;
+    tenantKeyInput = document.getElementById('tenantKey') as HTMLInputElement | null;
+    reportingToggle = document.getElementById('enableReporting') as HTMLInputElement | null;
+    saveBtn = document.getElementById('save') as HTMLButtonElement | null;
     statusDiv = document.getElementById('status') as HTMLDivElement | null;
-    console.log('Status div found:', statusDiv);
+    
+    console.log('DOM elements found:', {
+      enabledToggle: !!enabledToggle,
+      minScoreInput: !!minScoreInput,
+      apiBaseInput: !!apiBaseInput,
+      tenantKeyInput: !!tenantKeyInput,
+      reportingToggle: !!reportingToggle,
+      saveBtn: !!saveBtn,
+      statusDiv: !!statusDiv
+    });
     
     // Load current settings
     loadSettings();
     
-    // Add event listeners
+    // Add event listeners with more debugging
     if (saveBtn) {
-      saveBtn.addEventListener('click', saveSettings);
+      console.log('Adding click listener to save button');
+      saveBtn.addEventListener('click', (e: Event) => {
+        console.log('Save button clicked!', e);
+        saveSettings();
+      });
+    } else {
+      console.error('Save button not found!');
     }
     
     // Add reset button event listener
     const resetBtn = document.getElementById('reset') as HTMLButtonElement | null;
     if (resetBtn) {
-      resetBtn.addEventListener('click', resetToDefaults);
+      console.log('Adding click listener to reset button');
+      resetBtn.addEventListener('click', (e: Event) => {
+        console.log('Reset button clicked!', e);
+        resetToDefaults();
+      });
+    } else {
+      console.error('Reset button not found!');
     }
     
     // Add test status button event listener
     const testStatusBtn = document.getElementById('testStatus') as HTMLButtonElement | null;
     if (testStatusBtn) {
-      testStatusBtn.addEventListener('click', () => {
-        console.log('Test status button clicked');
+      console.log('Adding click listener to test status button');
+      testStatusBtn.addEventListener('click', (e: Event) => {
+        console.log('Test status button clicked!', e);
         setStatus('Test status message - this should be visible!', true);
       });
+    } else {
+      console.error('Test status button not found!');
     }
     
     // Add info about restrictions and defaults
