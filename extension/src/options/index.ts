@@ -50,19 +50,80 @@ async function loadSettings() {
     
     console.log('Settings loaded:', result);
     
-    // Apply settings to UI with defaults
-    if (enabledToggle) enabledToggle.checked = result.enabled ?? true; // Default: ON
-    if (minScoreInput) minScoreInput.value = (result.minScore ?? 20).toString(); // Default: 20
-    if (apiBaseInput) apiBaseInput.value = result.apiBase ?? DEFAULT_API_BASE; // Default: Custom domain
-    if (tenantKeyInput) tenantKeyInput.value = result.tenantKey ?? '';
-    if (reportingToggle) reportingToggle.checked = result.enableReporting ?? false;
+    // Apply settings to UI with proper defaults
+    // Check if we have any meaningful settings, if not, use defaults
+    const hasExistingSettings = result.enabled !== undefined && 
+                               result.minScore !== undefined && 
+                               result.apiBase !== undefined && 
+                               result.enableReporting !== undefined;
+    
+    if (enabledToggle) {
+      // If no existing settings, default to true. Otherwise use stored value
+      enabledToggle.checked = hasExistingSettings ? (result.enabled ?? true) : true;
+    }
+    
+    if (minScoreInput) {
+      // If no existing settings, default to 20. Otherwise use stored value
+      minScoreInput.value = hasExistingSettings ? (result.minScore ?? 20).toString() : '20';
+    }
+    
+    if (apiBaseInput) {
+      // If no existing settings, default to custom domain. Otherwise use stored value
+      apiBaseInput.value = hasExistingSettings ? (result.apiBase || DEFAULT_API_BASE) : DEFAULT_API_BASE;
+    }
+    
+    if (tenantKeyInput) {
+      // Tenant key can be empty, so just use stored value or empty string
+      tenantKeyInput.value = result.tenantKey || '';
+    }
+    
+    if (reportingToggle) {
+      // If no existing settings, default to false. Otherwise use stored value
+      reportingToggle.checked = hasExistingSettings ? (result.enableReporting ?? false) : false;
+    }
     
     console.log('Settings applied to UI');
+    
+    // If this is the first time (no existing settings), save defaults to storage
+    if (!hasExistingSettings) {
+      console.log('First time setup - saving default settings to storage');
+      const defaultSettings = {
+        enabled: true,
+        minScore: 20,
+        apiBase: DEFAULT_API_BASE,
+        tenantKey: '',
+        enableReporting: false
+      };
+      
+      // Try to save defaults to storage
+      try {
+        await chrome.storage.sync.set(defaultSettings);
+        console.log('Default settings saved to sync storage');
+      } catch (error) {
+        try {
+          await chrome.storage.local.set(defaultSettings);
+          console.log('Default settings saved to local storage');
+        } catch (localError) {
+          console.error('Failed to save default settings:', localError);
+        }
+      }
+    }
     
   } catch (error) {
     console.error('Error loading settings:', error);
     setStatus('Error loading settings', false);
   }
+}
+
+// Reset settings to defaults
+function resetToDefaults() {
+  if (enabledToggle) enabledToggle.checked = true;
+  if (minScoreInput) minScoreInput.value = '20';
+  if (apiBaseInput) apiBaseInput.value = DEFAULT_API_BASE;
+  if (tenantKeyInput) tenantKeyInput.value = '';
+  if (reportingToggle) reportingToggle.checked = false;
+  
+  setStatus('Settings reset to defaults', true);
 }
 
 // Save settings to storage
@@ -142,6 +203,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Add event listeners
     if (saveBtn) {
       saveBtn.addEventListener('click', saveSettings);
+    }
+    
+    // Add reset button event listener
+    const resetBtn = document.getElementById('reset') as HTMLButtonElement | null;
+    if (resetBtn) {
+      resetBtn.addEventListener('click', resetToDefaults);
     }
     
     // Add info about restrictions and defaults
