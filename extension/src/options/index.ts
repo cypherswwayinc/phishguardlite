@@ -20,16 +20,30 @@ function el<T extends HTMLElement>(x: T | null, name: string): T {
 
 // Set status message
 function setStatus(msg: string, ok = true) {
-  if (!statusDiv) return;
+  console.log('setStatus called with:', msg, 'ok:', ok);
+  console.log('statusDiv element:', statusDiv);
   
+  if (!statusDiv) {
+    console.error('statusDiv is null - cannot display status message');
+    return;
+  }
+  
+  console.log('Setting status div content and styles');
   statusDiv.textContent = msg;
   statusDiv.className = `status ${ok ? 'success' : 'error'}`;
   statusDiv.style.display = 'block';
+  
+  console.log('Status div updated:', {
+    textContent: statusDiv.textContent,
+    className: statusDiv.className,
+    display: statusDiv.style.display
+  });
   
   // Auto-hide after 5 seconds
   setTimeout(() => {
     if (statusDiv) {
       statusDiv.style.display = 'none';
+      console.log('Status message auto-hidden');
     }
   }, 5000);
 }
@@ -134,7 +148,7 @@ function saveSettings() {
       minScore: parseInt(minScoreInput?.value ?? '20'), // Default: 20
       apiBase: apiBaseInput?.value?.trim() || DEFAULT_API_BASE, // Default: Custom domain
       tenantKey: tenantKeyInput?.value?.trim() || '',
-      enableReporting: reportingToggle?.checked ?? false
+      enableReporting: reportingToggle?.checked ?? true // Default: ON
     };
     
     console.log('Saving settings:', settings);
@@ -145,11 +159,14 @@ function saveSettings() {
         // Try sync storage first
         await chrome.storage.sync.set(settings);
         console.log('Settings saved to sync storage successfully');
+        console.log('About to call setStatus with success message');
         setStatus('Settings saved successfully! ✓', true);
+        console.log('setStatus called for success');
         
         // Show restrictions warning if reporting is enabled
         if (settings.enableReporting) {
           setTimeout(() => {
+            console.log('Showing restrictions warning');
             setStatus('Note: Reporting may not work on Gmail, LinkedIn, and other corporate sites due to security restrictions. Test on regular websites.', false);
           }, 2000);
         }
@@ -161,7 +178,9 @@ function saveSettings() {
           // Fallback to local storage
           await chrome.storage.local.set(settings);
           console.log('Settings saved to local storage successfully');
+          console.log('About to call setStatus for local storage success');
           setStatus('Settings saved to local storage ✓', true);
+          console.log('setStatus called for local storage success');
           
         } catch (localError) {
           console.error('Both storage methods failed:', localError);
@@ -203,6 +222,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const resetBtn = document.getElementById('reset') as HTMLButtonElement | null;
     if (resetBtn) {
       resetBtn.addEventListener('click', resetToDefaults);
+    }
+    
+    // Add test status button event listener
+    const testStatusBtn = document.getElementById('testStatus') as HTMLButtonElement | null;
+    if (testStatusBtn) {
+      testStatusBtn.addEventListener('click', () => {
+        console.log('Test status button clicked');
+        setStatus('Test status message - this should be visible!', true);
+      });
     }
     
     // Add info about restrictions and defaults
