@@ -10,7 +10,7 @@ const apiBaseInput = document.getElementById('apiBase') as HTMLInputElement | nu
 const tenantKeyInput = document.getElementById('tenantKey') as HTMLInputElement | null;
 const reportingToggle = document.getElementById('enableReporting') as HTMLInputElement | null;
 const saveBtn = document.getElementById('save') as HTMLButtonElement | null;
-const statusDiv = document.getElementById('status') as HTMLDivElement | null;
+let statusDiv: HTMLDivElement | null = null;
 
 // Helper function to safely get elements
 function el<T extends HTMLElement>(x: T | null, name: string): T {
@@ -210,6 +210,10 @@ document.addEventListener('DOMContentLoaded', () => {
   console.log('PhishGuard options page loaded');
   
   try {
+    // Get the status div element after DOM is loaded
+    statusDiv = document.getElementById('status') as HTMLDivElement | null;
+    console.log('Status div found:', statusDiv);
+    
     // Load current settings
     loadSettings();
     
