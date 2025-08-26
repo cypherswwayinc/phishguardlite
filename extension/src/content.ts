@@ -23,16 +23,34 @@ let settings: Settings = {
   apiUrl: getApiBaseUrl()
 };
 
-chrome.storage.sync.get(["enabled", "minScore", "enableReporting", "apiUrl"], (s) => {
-  settings = { 
-    enabled: s.enabled ?? true, 
-    minScore: s.minScore ?? 20, 
-    enableReporting: s.enableReporting ?? false,
-    apiUrl: s.apiUrl ?? getApiBaseUrl()
-  };
-  console.log('PhishGuard settings loaded:', settings);
-  scanAllLinks();
-});
+// Only run content script on specific sites where we have permission
+const allowedHosts = [
+  'mail.google.com',
+  'www.linkedin.com', 
+  'linkedin.com',
+  'outlook.office.com',
+  'outlook.live.com'
+];
+
+// Check if current site is allowed
+if (allowedHosts.includes(window.location.hostname)) {
+  initializeContentScript();
+} else {
+  console.log('PhishGuard Lite: Site not in allowed hosts list, content script disabled');
+}
+
+function initializeContentScript() {
+  chrome.storage.sync.get(["enabled", "minScore", "enableReporting", "apiUrl"], (s) => {
+    settings = { 
+      enabled: s.enabled ?? true, 
+      minScore: s.minScore ?? 20, 
+      enableReporting: s.enableReporting ?? false,
+      apiUrl: s.apiUrl ?? getApiBaseUrl()
+    };
+    console.log('PhishGuard settings loaded:', settings);
+    scanAllLinks();
+  });
+}
 
 async function getCloudScore(url: string, linkText: string | null): Promise<CloudScore | null> {
   try {

@@ -1,8 +1,9 @@
 import { getApiBaseUrl } from '../config';
 
 const DEFAULT_API = getApiBaseUrl();
-// src/background.ts
-// Handles "Report Suspicious" requests by posting to backend /report
+
+// Background script for PhishGuard Lite
+// Uses activeTab permission for enhanced security
 
 // Listen for messages from content scripts
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -22,6 +23,38 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     
     // Return true to indicate we'll send a response asynchronously
     return true;
+  }
+});
+
+// Handle extension icon click to activate on current tab
+chrome.action.onClicked.addListener(async (tab) => {
+  if (tab.id && tab.url) {
+    console.log('Extension icon clicked on tab:', tab.id, tab.url);
+    
+    // Check if this is a supported site
+    const supportedHosts = [
+      'mail.google.com',
+      'www.linkedin.com', 
+      'linkedin.com',
+      'outlook.office.com',
+      'outlook.live.com'
+    ];
+    
+    try {
+      const url = new URL(tab.url);
+      if (supportedHosts.includes(url.hostname)) {
+        // Inject content script to activate scanning on this tab
+        await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          files: ['content.js']
+        });
+        console.log('Content script activated on tab:', tab.id);
+      } else {
+        console.log('Site not supported for active scanning:', url.hostname);
+      }
+    } catch (error) {
+      console.error('Error processing tab click:', error);
+    }
   }
 });
 
@@ -78,5 +111,5 @@ async function postReport(body: any) {
 }
 
 chrome.runtime.onInstalled.addListener(() => {
-  console.log("PhishGuard Lite installed");
+  console.log("PhishGuard Lite installed with activeTab permission");
 });
