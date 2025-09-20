@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>PhishGuard Lite — Options</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font: 14px/1.4 -apple-system, Segoe UI, Roboto, sans-serif; margin: 24px; max-width: 720px; }
+    h1 { font-size: 20px; margin-bottom: 12px; }
+    .row { margin: 10px 0; display: flex; gap: 12px; align-items: center; }
+    label { min-width: 180px; }
+    input[type="text"], input[type="number"] { flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 6px; }
+    .switch { display: flex; align-items: center; gap: 8px; }
+    #save { padding: 8px 14px; border-radius: 8px; border: 0; background: #1a73e8; color: #fff; cursor: pointer; }
+    #save:disabled { opacity: 0.6; cursor: not-allowed; }
+    #status { min-height: 20px; margin-top: 8px; color: #0a7a09; font-weight: 600; }
+    .status.success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; padding: 10px; border-radius: 5px; margin-top: 10px; }
+    .status.error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; padding: 10px; border-radius: 5px; margin-top: 10px; }
+    .hint { color: #555; font-size: 12px; }
+    .info-box { margin-top: 20px; padding: 15px; background-color: #e7f3ff; border: 1px solid #b3d9ff; border-radius: 5px; }
+  </style>
+</head>
+<body>
+  <h1>PhishGuard Lite — Options</h1>
+
+  <div class="row switch">
+    <input type="checkbox" id="enabled" />
+    <label for="enabled">Enable detection (Default: ON)</label>
+  </div>
+
+  <div class="row switch">
+    <input type="checkbox" id="enableReporting" />
+    <label for="enableReporting">Enable "Report Suspicious" (Default: ON)</label>
+  </div>
+
+  <div class="row">
+    <label for="minScore">Minimum score (Default: 20)</label>
+    <input type="number" id="minScore" min="0" max="100" step="1" />
+  </div>
+
+  <div class="row" style="display: none;">
+    <label for="apiBase">API Base URL</label>
+    <input type="text" id="apiBase" placeholder="https://phishguard.cyphersway.com" />
+    <div class="hint">Default: Your custom domain from config.ts</div>
+  </div>
+
+  <div class="row">
+    <label for="tenantKey">Tenant Key</label>
+    <input type="text" id="tenantKey" placeholder="demo or acme-001" />
+  </div>
+
+  <div class="row">
+    <button id="save">Save</button>
+    <button id="reset" style="margin-left: 10px; padding: 8px 14px; border-radius: 8px; border: 1px solid #ccc; background: #f8f9fa; color: #333; cursor: pointer;">Reset to Defaults</button>
+    <button id="testStatus" style="margin-left: 10px; padding: 8px 14px; border-radius: 8px; border: 1px solid #ccc; background: #f8f9fa; color: #333; cursor: pointer;">Test Status</button>
+  </div>
+
+  <div id="status" role="status" aria-live="polite"></div>
+  
+  <p class="hint">Tip: after saving, reload your email tab to apply changes.</p>
+
+  <!-- Load the compiled JavaScript file as a module -->
+  <script type="module" src="./options.js"></script>
+</body>
+</html>

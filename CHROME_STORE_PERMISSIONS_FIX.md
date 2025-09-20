@@ -161,3 +161,4 @@ Your extension had `"https://*/*"` in `host_permissions`, which gives access to 
 - ✅ **User Friendly**: Same functionality, better security
 
 **Your Chrome Web Store submission should now proceed much faster without the permissions review delay!**
+
