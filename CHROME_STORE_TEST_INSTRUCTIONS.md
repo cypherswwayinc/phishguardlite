@@ -2,15 +2,7 @@
 
 ## 🔐 **Test Account Credentials**
 
-### **Username:**
-```
-demo
-```
-
-### **Password:**
-```
-demo123
-```
+**Note:** This extension does not require user authentication. All functionality works immediately after installation without any login credentials.
 
 ---
 
@@ -35,7 +27,7 @@ demo123
   - ✅ "Enable Report Suspicious" checkbox is checked by default  
   - ✅ "Minimum score" is set to 20 by default
   - ✅ "API Base URL" shows: https://phishguard.cyphersway.com
-  - ✅ "Tenant Key" shows: demo
+  - ✅ "Tenant Key" shows: demo (default test value)
 - **Test Actions**:
   - Change minimum score to 15, save, then reset to defaults
   - Toggle checkboxes on/off and save
@@ -218,8 +210,7 @@ If you encounter any issues during testing:
 
 ### **Notes for Review Team:**
 
-- **No Authentication Required**: The extension works immediately after installation
-- **Demo Credentials**: Username "demo" and password "demo123" are for testing purposes only
+- **No Authentication Required**: The extension works immediately after installation without login credentials
 - **Backend API**: All functionality connects to our secure backend at phishguard.cyphersway.com
 - **Privacy-First**: No user data is collected or stored locally
 - **Professional Grade**: Designed for enterprise and personal use
