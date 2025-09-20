@@ -53,6 +53,9 @@ config.json
 .env.local
 .env.production
 
+# Private documentation (CONFIDENTIAL)
+PRIVATE_DOCUMENTATION/
+
 # Test files (optional - remove if you want to keep them)
 test-*.html
 *-test.html
