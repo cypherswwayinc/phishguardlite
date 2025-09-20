@@ -274,6 +274,30 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Static file serving for admin dashboards
+@app.get("/admin-dashboard.html")
+async def admin_dashboard():
+    """Serve the main admin dashboard HTML file"""
+    dashboard_path = Path(__file__).parent / "admin-dashboard.html"
+    if dashboard_path.exists():
+        return FileResponse(dashboard_path)
+    else:
+        raise HTTPException(status_code=404, detail="Admin dashboard not found")
+
+@app.get("/admin/")
+async def admin_react():
+    """Serve the React admin interface"""
+    admin_path = Path(__file__).parent / "admin" / "index.html"
+    if admin_path.exists():
+        return FileResponse(admin_path)
+    else:
+        raise HTTPException(status_code=404, detail="Admin interface not found")
+
+# Mount static files for admin assets
+admin_static_path = Path(__file__).parent / "admin"
+if admin_static_path.exists():
+    app.mount("/admin/static", StaticFiles(directory=str(admin_static_path)), name="admin_static")
+
 @app.get("/admin/api/reports")
 def admin_list_reports(limit: int = 200):
     """List all reports with optional filtering"""
