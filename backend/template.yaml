@@ -32,7 +32,7 @@ Resources:
           Value: !Sub "PhishGuard-${CustomDomainName}"
 
   # Custom Domain Name (if provided)
-  CustomDomainName:
+  CustomDomainNameResource:
     Type: AWS::ApiGateway::DomainName
     Condition: HasCustomDomain
     Properties:
@@ -40,7 +40,7 @@ Resources:
       CertificateArn: !Ref SSLCertificate
       EndpointConfiguration:
         Types:
-          - REGIONAL
+        - EDGE
       Tags:
         - Key: Name
           Value: !Sub "PhishGuard-${CustomDomainName}"
@@ -50,7 +50,7 @@ Resources:
     Type: AWS::ApiGateway::BasePathMapping
     Condition: HasCustomDomain
     Properties:
-      DomainName: !Ref CustomDomainName
+      DomainName: !Ref CustomDomainNameResource
       RestApiId: !Ref ServerlessRestApi
       Stage: Prod
 
@@ -66,15 +66,11 @@ Resources:
           Properties:
             Path: /
             Method: ANY
-            Auth:
-              ApiKeyRequired: true
         Api:
           Type: Api
           Properties:
             Path: /{proxy+}
             Method: ANY
-            Auth:
-              ApiKeyRequired: true
       Policies:
         - S3CrudPolicy:
             BucketName: "pg-reports-${AWS::AccountId}-${AWS::Region}"
@@ -90,13 +86,13 @@ Outputs:
     Description: "PhishGuard API Gateway endpoint URL"
     Value: !If 
       - HasCustomDomain
-      - !Sub "https://${CustomDomainName}/"
+      - !Sub "https://${CustomDomainNameResource}/"
       - !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
   
   PhishGuardCustomDomain:
     Description: "Custom domain URL (if provided)"
     Condition: HasCustomDomain
-    Value: !Sub "https://${CustomDomainName}/"
+    Value: !Sub "https://${CustomDomainNameResource}/"
   
   PhishGuardReportsBucket:
     Description: "S3 Bucket for PhishGuard reports (existing)"

@@ -2,12 +2,14 @@ version = 0.1
 [default]
 [default.deploy]
 [default.deploy.parameters]
-stack_name = "phishguard-backend"
+stack_name = "phishguard-lite-backend"
 s3_bucket = "aws-sam-cli-managed-default-samclisourcebucket-xyf9zlnrqutn"
 s3_prefix = "phishguard-backend"
 region = "us-east-1"
 confirm_changeset = true
 capabilities = "CAPABILITY_IAM"
-parameter_overrides = "Environment=\"prod\""
+parameter_overrides = "CustomDomainName=\"\""
 image_repositories = []
 profile = "PhishGuard"
+resolve_s3 = false
+disable_rollback = true
