@@ -14,7 +14,7 @@
 
 ### Key Features
 - **Real-time Phishing Detection**: Analyzes links as you browse
-- **Local + Cloud Scoring**: Combines local heuristics with cloud AI
+- **Local Scoring**: All link analysis runs in your browser; nothing is sent while you read email
 - **One-click Reporting**: Easy reporting of suspicious links
 - **Multi-tenant Support**: Organization-based reporting
 - **Privacy-focused**: Reports only when user explicitly requests
@@ -106,12 +106,12 @@ phishguard-lite-chrome-store.zip
 ### Resource Usage
 - **Memory**: Minimal memory footprint
 - **CPU**: Efficient local scoring algorithms
-- **Network**: Only when reporting is enabled
+- **Network**: Only when you press a link's Report button
 - **Storage**: < 1MB total extension size
 
 ### Detection Accuracy
 - **Local Scoring**: Basic heuristics for immediate protection
-- **Cloud AI**: Enhanced detection when reporting enabled
+- **Reporting**: One-click report of a suspicious link to your organization's PhishGuard dashboard
 - **False Positive Rate**: Optimized for minimal false alarms
 - **Response Time**: Sub-second link analysis
 
@@ -141,7 +141,7 @@ phishguard-lite-chrome-store.zip
 ### Store Listing
 - **Title**: PhishGuard Lite - Phishing Detection
 - **Subtitle**: Real-time protection against malicious links
-- **Description**: Professional phishing detection extension with local and cloud scoring
+- **Description**: Professional phishing detection extension with local, private link scoring
 - **Keywords**: phishing, security, protection, links, safety, browser security
 
 ## 🔄 Updates & Maintenance

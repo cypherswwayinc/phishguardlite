@@ -12,10 +12,10 @@ export const CONFIG = {
   
   // Extension Settings
   EXTENSION_NAME: "PhishGuard Lite",
-  VERSION: "0.2.4",
+  VERSION: "0.3.0",
   
   // Feature Flags
-  ENABLE_CLOUD_SCORING: true,
+  ENABLE_CLOUD_SCORING: false, // scoring is local-only; reports are sent only on user click
   ENABLE_REPORTING: true,
   ENABLE_LOCAL_DETECTION: true,
 };

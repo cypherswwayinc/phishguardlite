@@ -7,6 +7,12 @@ Parameters:
     Type: String
     Default: phishguard-reports
     Description: Name for the S3 bucket to store phishing reports
+  AdminToken:
+    Type: String
+    NoEcho: true
+    Default: ""
+    AllowedPattern: "^$|^.{16,}$"
+    Description: "Bearer token that protects /admin/api/* (min 16 characters). Leave empty to disable the admin API."
 
 Resources:
   # IAM Role for Lambda function
@@ -42,6 +48,11 @@ Resources:
     Type: AWS::Serverless::Api
     Properties:
       StageName: Prod
+      MethodSettings:
+        - ResourcePath: "/*"
+          HttpMethod: "*"
+          ThrottlingBurstLimit: 20
+          ThrottlingRateLimit: 10
       Cors:
         AllowMethods: "'*'"
         AllowHeaders: "'*'"
@@ -59,6 +70,7 @@ Resources:
       Environment:
         Variables:
           S3_BUCKET: phishguard-reports-1755667751
+          ADMIN_TOKEN: !Ref AdminToken
       Role: !GetAtt PhishGuardFunctionRole.Arn
       Events:
         Api:

@@ -295,6 +295,38 @@
     <script>
         // Custom domain API URL
         const API_BASE = 'https://phishguard.cyphersway.com';
+
+        // Everything coming from the API is untrusted (anyone can submit a report): always escape.
+        function esc(value) {
+            return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        }
+        // Only http(s) links are clickable.
+        function safeHref(url) {
+            try { const u = new URL(url); return (u.protocol === 'http:' || u.protocol === 'https:') ? esc(u.href) : '#'; }
+            catch (e) { return '#'; }
+        }
+        // Admin token: kept in sessionStorage (cleared when the tab closes), sent as a Bearer header.
+        function getToken(forcePrompt) {
+            let t = null;
+            try { t = sessionStorage.getItem('pgAdminToken'); } catch (e) {}
+            if (!t || forcePrompt) {
+                t = window.prompt('Enter the PhishGuard admin token');
+                try { if (t) sessionStorage.setItem('pgAdminToken', t); } catch (e) {}
+            }
+            return t;
+        }
+        async function apiFetch(path) {
+            const token = getToken(false);
+            if (!token) throw new Error('Admin token required');
+            const res = await fetch(`${API_BASE}${path}`, { headers: { Authorization: `Bearer ${token}` } });
+            if (res.status === 401) {
+                try { sessionStorage.removeItem('pgAdminToken'); } catch (e) {}
+                throw new Error('Unauthorized: wrong admin token (reload to try again)');
+            }
+            if (res.status === 503) throw new Error('Admin API is disabled: set ADMIN_TOKEN on the backend');
+            if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+            return res.json();
+        }
         
         let allReports = [];
         let currentFilter = '';
@@ -312,22 +344,12 @@
                 updateApiStatus('Connecting to API...', false);
                 
                 // Fetch summary data
-                const summaryResponse = await fetch(`${API_BASE}/admin/api/reports/summary`);
-                if (!summaryResponse.ok) {
-                    throw new Error(`HTTP ${summaryResponse.status}: ${summaryResponse.statusText}`);
-                }
-                
-                const summary = await summaryResponse.json();
+                const summary = await apiFetch('/admin/api/reports/summary');
                 updateSummary(summary);
                 updateApiStatus('Connected to API', true);
                 
                 // Fetch detailed reports
-                const reportsResponse = await fetch(`${API_BASE}/admin/api/reports?limit=200`);
-                if (!reportsResponse.ok) {
-                    throw new Error(`HTTP ${reportsResponse.status}: ${reportsResponse.statusText}`);
-                }
-                
-                const reports = await reportsResponse.json();
+                const reports = await apiFetch('/admin/api/reports?limit=200');
                 allReports = reports.items || [];
                 updateReportsTable(allReports);
                 
@@ -342,7 +364,7 @@
             const statusEl = document.getElementById('apiStatus');
             statusEl.innerHTML = `
                 <div class="status-indicator"></div>
-                <span>${message}</span>
+                <span>${esc(message)}</span>
             `;
             statusEl.className = `api-status ${isConnected ? '' : 'error'}`;
         }
@@ -402,27 +424,29 @@
             `;
             
             reports.forEach((report, index) => {
-                const riskClass = getRiskClass(report.score);
-                const riskLabel = getRiskLabel(report.score);
-                const reasons = (report.reasons || []).slice(0, 3);
-                const hasMoreReasons = (report.reasons || []).length > 3;
+                const allReasons = report.reasons || (report.context && report.context.reasons) || [];
+                const score = report.score ?? (report.context && report.context.score);
+                const riskClass = getRiskClass(score);
+                const riskLabel = report.label || getRiskLabel(score);
+                const reasons = allReasons.slice(0, 3);
+                const hasMoreReasons = allReasons.length > 3;
                 
                 html += `
                     <tr class="expandable-row" onclick="toggleDetails(${index})">
                         <td>
-                            <a href="${report.url}" target="_blank" onclick="event.stopPropagation()">
-                                ${report.url}
+                            <a href="${safeHref(report.url)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">
+                                ${esc(report.url)}
                             </a>
                         </td>
                         <td>
                             <span class="${riskClass}">${riskLabel}</span>
                         </td>
                         <td class="reasons">
-                            ${reasons.map(r => `<span class="reason-tag">${r}</span>`).join('')}
-                            ${hasMoreReasons ? `<span class="reason-tag">+${(report.reasons || []).length - 3} more</span>` : ''}
+                            ${reasons.map(r => `<span class="reason-tag">${esc(r)}</span>`).join('')}
+                            ${hasMoreReasons ? `<span class="reason-tag">+${allReasons.length - 3} more</span>` : ''}
                         </td>
-                        <td>${report.tenantKey || 'unknown'}</td>
-                        <td>${formatDate(report.reportedAt)}</td>
+                        <td>${esc(report.tenantKey || 'unknown')}</td>
+                        <td>${esc(formatDate(report.reportedAt))}</td>
                         <td>${report.context ? '📋' : '-'}</td>
                     </tr>
                     <tr id="details-${index}" style="display: none;">
@@ -431,25 +455,25 @@
                                 <h4>Report Details</h4>
                                 <div class="detail-row">
                                     <span class="detail-label">Score:</span>
-                                    <span class="detail-value">${report.score || 'N/A'}</span>
+                                    <span class="detail-value">${esc(score ?? 'N/A')}</span>
                                 </div>
                                 <div class="detail-row">
                                     <span class="detail-label">All Reasons:</span>
-                                    <span class="detail-value">${(report.reasons || []).join(', ') || 'None'}</span>
+                                    <span class="detail-value">${esc(allReasons.join(', ') || 'None')}</span>
                                 </div>
                                 ${report.context ? `
                                     <div class="detail-row">
                                         <span class="detail-label">Link Text:</span>
-                                        <span class="detail-value">${report.context.linkText || 'N/A'}</span>
+                                        <span class="detail-value">${esc(report.context.linkText || 'N/A')}</span>
                                     </div>
                                     <div class="detail-row">
                                         <span class="detail-label">Page URL:</span>
-                                        <span class="detail-value">${report.context.pageUrl || 'N/A'}</span>
+                                        <span class="detail-value">${esc(report.context.pageUrl || 'N/A')}</span>
                                     </div>
                                 ` : ''}
                                 <div class="detail-row">
                                     <span class="detail-label">Report ID:</span>
-                                    <span class="detail-value">${report.id || 'N/A'}</span>
+                                    <span class="detail-value">${esc(report.id || 'N/A')}</span>
                                 </div>
                             </div>
                         </td>
@@ -508,12 +532,12 @@
         
         function showError(message) {
             const container = document.getElementById('reportsContainer');
-            container.innerHTML = `<div class="error-message">${message}</div>`;
+            container.innerHTML = `<div class="error-message">${esc(message)}</div>`;
         }
         
         function showSuccess(message) {
             const container = document.getElementById('reportsContainer');
-            container.innerHTML = `<div class="success-message">${message}</div>`;
+            container.innerHTML = `<div class="success-message">${esc(message)}</div>`;
         }
     </script>
 </body>

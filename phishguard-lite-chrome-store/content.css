@@ -1,0 +1,73 @@
+/* PhishGuard Lite: badge shown next to flagged links.
+   Loaded through manifest "content_scripts.css" so it works under Gmail/Outlook CSP.
+   `all: initial` isolates the badge from the host page's own CSS. */
+
+.pg-wrap,
+.pg-wrap * {
+  all: initial;
+  box-sizing: border-box;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+}
+
+.pg-wrap {
+  display: inline-block;
+  position: relative;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.pg-wrap .pg-badge {
+  display: inline-block;
+  padding: 1px 8px;
+  border: 1px solid;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 18px;
+  cursor: default;
+  user-select: none;
+}
+.pg-wrap .pg-badge[data-level="caution"] { background: #fff3cd; color: #664d03; border-color: #e0b84a; }
+.pg-wrap .pg-badge[data-level="high"]    { background: #f8d7da; color: #842029; border-color: #e08b93; }
+.pg-wrap .pg-badge:focus-visible { outline: 2px solid #1a73e8; outline-offset: 1px; }
+
+.pg-wrap .pg-tooltip {
+  display: none;
+  position: absolute;
+  top: 24px;
+  left: 0;
+  z-index: 2147483647;
+  width: max-content;
+  max-width: 320px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #1f1f1f;
+  color: #fff;
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: left;
+  white-space: normal;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+}
+.pg-wrap[data-open="1"] .pg-tooltip { display: block; }
+.pg-wrap .pg-tooltip * { color: #fff; font-size: 12px; line-height: 1.4; }
+.pg-wrap .pg-tooltip strong { font-weight: 700; }
+.pg-wrap .pg-tooltip ul { display: block; margin: 6px 0; padding-left: 16px; list-style: disc; }
+.pg-wrap .pg-tooltip li { display: list-item; }
+.pg-wrap .pg-tooltip .pg-dest { display: block; word-break: break-all; }
+.pg-wrap .pg-tooltip .pg-dest span { display: inline; }
+.pg-wrap .pg-tooltip .pg-dest strong { display: inline; }
+
+.pg-wrap .pg-report-btn {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 8px;
+  border-radius: 10px;
+  background: #0a84ff;
+  color: #fff;
+  font-size: 12px;
+  line-height: 18px;
+  cursor: pointer;
+}
+.pg-wrap .pg-report-btn:hover { opacity: 0.9; }
+.pg-wrap .pg-report-btn:disabled { opacity: 0.6; cursor: default; }

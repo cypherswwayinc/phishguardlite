@@ -1,301 +1,120 @@
-// Robust Options logic for PhishGuard Lite
-import { getApiBaseUrl } from '../../config';
+// Options page logic for PhishGuard Lite.
+import { getApiBaseUrl } from "../../config";
 
 const DEFAULT_API_BASE = getApiBaseUrl();
+const KEYS = ["enabled", "minScore", "apiBase", "tenantKey", "enableReporting"];
 
-// Global variables for DOM elements
-let enabledToggle: HTMLInputElement | null = null;
-let minScoreInput: HTMLInputElement | null = null;
-let apiBaseInput: HTMLInputElement | null = null;
-let tenantKeyInput: HTMLInputElement | null = null;
-let reportingToggle: HTMLInputElement | null = null;
-let saveBtn: HTMLButtonElement | null = null;
-let statusDiv: HTMLDivElement | null = null;
+const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T | null;
 
-// Helper function to safely get elements
-function el<T extends HTMLElement>(x: T | null, name: string): T {
-  if (!x) throw new Error(`Element '${name}' not found`);
-  return x;
+let statusTimer: number | undefined;
+function setStatus(msg: string, ok = true): void {
+  const box = $<HTMLDivElement>("status");
+  if (!box) return;
+  box.textContent = msg;
+  box.className = `status ${ok ? "success" : "error"}`;
+  box.style.display = "block";
+  clearTimeout(statusTimer);
+  statusTimer = window.setTimeout(() => (box.style.display = "none"), 5000);
 }
 
-// Set status message
-function setStatus(msg: string, ok = true) {
-  console.log('setStatus called with:', msg, 'ok:', ok);
-  console.log('statusDiv element:', statusDiv);
-  
-  if (!statusDiv) {
-    console.error('statusDiv is null - cannot display status message');
+function readForm() {
+  const minScore = Number($<HTMLInputElement>("minScore")?.value);
+  return {
+    enabled: $<HTMLInputElement>("enabled")?.checked ?? true,
+    enableReporting: $<HTMLInputElement>("enableReporting")?.checked ?? true,
+    minScore: Number.isFinite(minScore) ? Math.min(100, Math.max(0, Math.round(minScore))) : 20,
+    apiBase: $<HTMLInputElement>("apiBase")?.value.trim() || DEFAULT_API_BASE,
+    tenantKey: $<HTMLInputElement>("tenantKey")?.value.trim() ?? "",
+  };
+}
+
+function writeForm(s: Partial<ReturnType<typeof readForm>>): void {
+  const set = <T extends HTMLInputElement>(id: string, fn: (el: T) => void) => {
+    const el = $<T>(id);
+    if (el) fn(el);
+  };
+  set("enabled", (el) => (el.checked = s.enabled ?? true));
+  set("enableReporting", (el) => (el.checked = s.enableReporting ?? true));
+  set("minScore", (el) => (el.value = String(s.minScore ?? 20)));
+  set("apiBase", (el) => (el.value = s.apiBase || DEFAULT_API_BASE));
+  set("tenantKey", (el) => (el.value = s.tenantKey ?? ""));
+}
+
+async function load(): Promise<void> {
+  let stored: Record<string, unknown> = {};
+  try {
+    stored = await chrome.storage.sync.get(KEYS);
+  } catch {
+    /* sync unavailable */
+  }
+  if (Object.keys(stored).length === 0) {
+    try {
+      stored = await chrome.storage.local.get(KEYS);
+    } catch {
+      /* defaults */
+    }
+  }
+  writeForm(stored as Partial<ReturnType<typeof readForm>>);
+}
+
+async function save(): Promise<void> {
+  const btn = $<HTMLButtonElement>("save");
+  const settings = readForm();
+  if (!settings.apiBase.startsWith("https://")) {
+    setStatus("API address must start with https://", false);
     return;
   }
-  
-  console.log('Setting status div content and styles');
-  statusDiv.textContent = msg;
-  statusDiv.className = `status ${ok ? 'success' : 'error'}`;
-  statusDiv.style.display = 'block';
-  
-  console.log('Status div updated:', {
-    textContent: statusDiv.textContent,
-    className: statusDiv.className,
-    display: statusDiv.style.display
-  });
-  
-  // Auto-hide after 5 seconds
-  setTimeout(() => {
-    if (statusDiv) {
-      statusDiv.style.display = 'none';
-      console.log('Status message auto-hidden');
-    }
-  }, 5000);
-}
-
-// Load settings from storage with fallback
-async function loadSettings() {
-  console.log('Loading PhishGuard settings...');
-  
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "Saving...";
+  }
   try {
-    // Try sync storage first (enterprise profiles)
-    let result = await chrome.storage.sync.get(["enabled", "minScore", "apiBase", "tenantKey", "enableReporting"]);
-    
-    // If sync storage fails or is empty, try local storage as fallback
-    if (chrome.runtime.lastError || Object.keys(result).length === 0) {
-      console.log('Sync storage failed, trying local storage fallback...');
-      result = await chrome.storage.local.get(["enabled", "minScore", "apiBase", "tenantKey", "enableReporting"]);
-    }
-    
-    console.log('Settings loaded:', result);
-    
-    // Apply settings to UI with proper defaults
-    // Apply defaults for each setting individually
-    if (enabledToggle) {
-      // Default to true (enabled) if no stored value
-      enabledToggle.checked = result.enabled !== undefined ? result.enabled : true;
-    }
-    
-    if (minScoreInput) {
-      // Default to 20 if no stored value
-      minScoreInput.value = result.minScore !== undefined ? result.minScore.toString() : '20';
-    }
-    
-    if (apiBaseInput) {
-      // Default to custom domain if no stored value
-      apiBaseInput.value = result.apiBase || DEFAULT_API_BASE;
-    }
-    
-    if (tenantKeyInput) {
-      // Tenant key can be empty, so just use stored value or empty string
-      tenantKeyInput.value = result.tenantKey || '';
-    }
-    
-    if (reportingToggle) {
-      // Default to true (enabled) if no stored value
-      reportingToggle.checked = result.enableReporting !== undefined ? result.enableReporting : true;
-    }
-    
-    console.log('Settings applied to UI');
-    
-    // Always save the current settings (including defaults) to ensure they persist
-    const currentSettings = {
-      enabled: enabledToggle?.checked ?? true,
-      minScore: parseInt(minScoreInput?.value ?? '20'),
-      apiBase: apiBaseInput?.value || DEFAULT_API_BASE,
-      tenantKey: tenantKeyInput?.value || '',
-      enableReporting: reportingToggle?.checked ?? true
-    };
-    
-    console.log('Saving current settings to storage:', currentSettings);
-    
-    // Try to save to sync storage first, fallback to local
     try {
-      await chrome.storage.sync.set(currentSettings);
-      console.log('Settings saved to sync storage successfully');
-    } catch (error) {
-      try {
-        await chrome.storage.local.set(currentSettings);
-        console.log('Settings saved to local storage successfully');
-      } catch (localError) {
-        console.error('Failed to save settings:', localError);
-      }
+      await chrome.storage.sync.set(settings);
+    } catch {
+      await chrome.storage.local.set(settings); // managed profiles without sync
     }
-    
-  } catch (error) {
-    console.error('Error loading settings:', error);
-    setStatus('Error loading settings', false);
-  }
-}
-
-// Reset settings to defaults
-function resetToDefaults() {
-  if (enabledToggle) enabledToggle.checked = true;
-  if (minScoreInput) minScoreInput.value = '20';
-  if (apiBaseInput) apiBaseInput.value = DEFAULT_API_BASE;
-  if (tenantKeyInput) tenantKeyInput.value = '';
-  if (reportingToggle) reportingToggle.checked = true;
-  
-  setStatus('Settings reset to defaults', true);
-}
-
-// Save settings to storage
-function saveSettings() {
-  if (!saveBtn) return;
-  
-  try {
-    // Disable save button during operation
-    saveBtn.disabled = true;
-    saveBtn.textContent = 'Saving...';
-    
-    const settings = {
-      enabled: enabledToggle?.checked ?? true, // Default: ON
-      minScore: parseInt(minScoreInput?.value ?? '20'), // Default: 20
-      apiBase: apiBaseInput?.value?.trim() || DEFAULT_API_BASE, // Default: Custom domain
-      tenantKey: tenantKeyInput?.value?.trim() || '',
-      enableReporting: reportingToggle?.checked ?? true // Default: ON
-    };
-    
-    console.log('Saving settings:', settings);
-    
-    // Try to save to sync storage first, fallback to local if it fails
-    const saveToStorage = async () => {
-      try {
-        // Try sync storage first
-        await chrome.storage.sync.set(settings);
-        console.log('Settings saved to sync storage successfully');
-        console.log('About to call setStatus with success message');
-        setStatus('Settings saved successfully! ✓', true);
-        console.log('setStatus called for success');
-        
-        // Show restrictions warning if reporting is enabled
-        if (settings.enableReporting) {
-          setTimeout(() => {
-            console.log('Showing restrictions warning');
-            setStatus('Note: Reporting may not work on Gmail, LinkedIn, and other corporate sites due to security restrictions. Test on regular websites.', false);
-          }, 2000);
-        }
-        
-      } catch (error) {
-        console.log('Sync storage failed, trying local storage fallback...');
-        
-        try {
-          // Fallback to local storage
-          await chrome.storage.local.set(settings);
-          console.log('Settings saved to local storage successfully');
-          console.log('About to call setStatus for local storage success');
-          setStatus('Settings saved to local storage ✓', true);
-          console.log('setStatus called for local storage success');
-          
-        } catch (localError) {
-          console.error('Both storage methods failed:', localError);
-          setStatus('Error saving settings: ' + localError, false);
-        }
-      }
-      
-      // Re-enable save button
-      if (saveBtn) {
-        saveBtn.disabled = false;
-        saveBtn.textContent = 'Save';
-      }
-    };
-    
-    saveToStorage();
-    
-  } catch (error) {
-    console.error('Error in saveSettings:', error);
-    setStatus('Error saving settings: ' + error, false);
-    
-    // Re-enable save button
-    if (saveBtn) {
-      saveBtn.disabled = false;
-      saveBtn.textContent = 'Save';
+    writeForm(settings); // show the cleaned-up values that were actually stored
+    setStatus("Settings saved ✓");
+  } catch (e) {
+    setStatus("Could not save settings: " + (e instanceof Error ? e.message : String(e)), false);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = "Save";
     }
   }
 }
 
-// Initialize the options page
-document.addEventListener('DOMContentLoaded', () => {
-  console.log('PhishGuard options page loaded');
-  
-  try {
-    // Get all DOM elements after DOM is loaded
-    enabledToggle = document.getElementById('enabled') as HTMLInputElement | null;
-    minScoreInput = document.getElementById('minScore') as HTMLInputElement | null;
-    apiBaseInput = document.getElementById('apiBase') as HTMLInputElement | null;
-    tenantKeyInput = document.getElementById('tenantKey') as HTMLInputElement | null;
-    reportingToggle = document.getElementById('enableReporting') as HTMLInputElement | null;
-    saveBtn = document.getElementById('save') as HTMLButtonElement | null;
-    statusDiv = document.getElementById('status') as HTMLDivElement | null;
-    
-    console.log('DOM elements found:', {
-      enabledToggle: !!enabledToggle,
-      minScoreInput: !!minScoreInput,
-      apiBaseInput: !!apiBaseInput,
-      tenantKeyInput: !!tenantKeyInput,
-      reportingToggle: !!reportingToggle,
-      saveBtn: !!saveBtn,
-      statusDiv: !!statusDiv
-    });
-    
-    // Load current settings
-    loadSettings();
-    
-    // Add event listeners with more debugging
-    if (saveBtn) {
-      console.log('Adding click listener to save button');
-      saveBtn.addEventListener('click', (e: Event) => {
-        console.log('Save button clicked!', e);
-        saveSettings();
-      });
-    } else {
-      console.error('Save button not found!');
-    }
-    
-    // Add reset button event listener
-    const resetBtn = document.getElementById('reset') as HTMLButtonElement | null;
-    if (resetBtn) {
-      console.log('Adding click listener to reset button');
-      resetBtn.addEventListener('click', (e: Event) => {
-        console.log('Reset button clicked!', e);
-        resetToDefaults();
-      });
-    } else {
-      console.error('Reset button not found!');
-    }
-    
-    // Add test status button event listener
-    const testStatusBtn = document.getElementById('testStatus') as HTMLButtonElement | null;
-    if (testStatusBtn) {
-      console.log('Adding click listener to test status button');
-      testStatusBtn.addEventListener('click', (e: Event) => {
-        console.log('Test status button clicked!', e);
-        setStatus('Test status message - this should be visible!', true);
-      });
-    } else {
-      console.error('Test status button not found!');
-    }
-    
-    // Add info about restrictions and defaults
-    const infoDiv = document.createElement('div');
-    infoDiv.innerHTML = `
-      <div style="margin-top: 20px; padding: 15px; background-color: #e7f3ff; border: 1px solid #b3d9ff; border-radius: 5px;">
-        <h4>Important Notes:</h4>
-        <ul style="margin: 5px 0; padding-left: 20px;">
-          <li><strong>Default Settings:</strong> Both detection and reporting are enabled by default</li>
-          <li><strong>API URL:</strong> Automatically configured to your custom domain (hidden field)</li>
-          <li><strong>Minimum Score:</strong> Set to 20 for optimal phishing detection</li>
-          <li><strong>Corporate Sites:</strong> Gmail, LinkedIn, Outlook have security restrictions</li>
-          <li><strong>Local Detection:</strong> Basic phishing detection works everywhere</li>
-          <li><strong>Cloud Scoring:</strong> Enhanced detection when reporting is enabled</li>
-          <li><strong>Best Testing:</strong> Use regular websites or our test pages</li>
-        </ul>
-      </div>
-    `;
-    
-    if (statusDiv && statusDiv.parentNode) {
-      statusDiv.parentNode.insertBefore(infoDiv, statusDiv.nextSibling);
-    }
-    
-    console.log('Options page initialized successfully');
-    
-  } catch (error) {
-    console.error('Error initializing options page:', error);
-    setStatus('Error initializing options page', false);
+function addInfoBox(): void {
+  const status = $<HTMLDivElement>("status");
+  if (!status?.parentNode) return;
+  const box = document.createElement("div");
+  box.className = "info-box";
+  const title = document.createElement("h4");
+  title.textContent = "How PhishGuard Lite works";
+  const list = document.createElement("ul");
+  list.style.cssText = "margin: 5px 0; padding-left: 20px;";
+  for (const line of [
+    "Links are checked locally in your browser. Nothing is sent anywhere while you read email.",
+    "A link is only sent to PhishGuard when you press its Report button.",
+    "Minimum score: links scoring at or above this value get a badge (20 = Caution, 50 = High Risk).",
+    "Works on Gmail, Outlook on the web and LinkedIn.",
+  ]) {
+    const li = document.createElement("li");
+    li.textContent = line;
+    list.appendChild(li);
   }
+  box.append(title, list);
+  status.parentNode.insertBefore(box, status.nextSibling);
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  void load();
+  $("save")?.addEventListener("click", () => void save());
+  $("reset")?.addEventListener("click", () => {
+    writeForm({});
+    setStatus("Defaults restored. Press Save to apply.");
+  });
+  addInfoBox();
 });

@@ -1,115 +1,104 @@
-import { getApiBaseUrl } from '../config';
+// src/background.ts
+// Service worker. Its only network job is submitting a report the user explicitly clicked.
+// (Content scripts on Gmail/Outlook can't call our API directly; the worker can, via host_permissions.)
+
+import { getApiBaseUrl } from "../config";
 
 const DEFAULT_API = getApiBaseUrl();
+const REQUEST_TIMEOUT_MS = 10_000;
 
-// Background script for PhishGuard Lite
-// Uses activeTab permission for enhanced security
+type ReportMessage = {
+  type: "pg_report_suspicious";
+  url: unknown;
+  linkText?: unknown;
+  pageUrl?: unknown;
+  reasons?: unknown;
+  score?: unknown;
+  label?: unknown;
+};
 
-// Listen for messages from content scripts
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  console.log('Background script received message:', message);
-  
-  if (message.type === 'pg_report_suspicious') {
-    console.log('Processing suspicious link report:', message);
-    
-    // Handle the report asynchronously
-    postReport(message).then(response => {
-      console.log('Report response:', response);
-      sendResponse(response);
-    }).catch(error => {
-      console.error('Report error:', error);
-      sendResponse({ ok: false, error: error.message });
-    });
-    
-    // Return true to indicate we'll send a response asynchronously
-    return true;
-  }
-});
+type Result = { ok: boolean; message?: string; reportId?: string; error?: string };
 
-// Handle extension icon click to activate on current tab
-chrome.action.onClicked.addListener(async (tab) => {
-  if (tab.id && tab.url) {
-    console.log('Extension icon clicked on tab:', tab.id, tab.url);
-    
-    // Check if this is a supported site
-    const supportedHosts = [
-      'mail.google.com',
-      'www.linkedin.com', 
-      'linkedin.com',
-      'outlook.office.com',
-      'outlook.live.com'
-    ];
-    
-    try {
-      const url = new URL(tab.url);
-      if (supportedHosts.includes(url.hostname)) {
-        // Inject content script to activate scanning on this tab
-        await chrome.scripting.executeScript({
-          target: { tabId: tab.id },
-          files: ['content.js']
-        });
-        console.log('Content script activated on tab:', tab.id);
-      } else {
-        console.log('Site not supported for active scanning:', url.hostname);
-      }
-    } catch (error) {
-      console.error('Error processing tab click:', error);
-    }
-  }
-});
-
-async function postReport(body: any) {
-  return new Promise((resolve) => {
-    chrome.storage.sync.get(["apiBase", "tenantKey"], async (s) => {
-      try {
-        const apiBase = (s.apiBase || DEFAULT_API).replace(/\/$/, "");
-        const tenantKey = s.tenantKey || '';
-        
-        console.log('Sending report to:', apiBase);
-        console.log('Report data:', body);
-        
-        const response = await fetch(`${apiBase}/report`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            url: body.url,
-            tenantKey: tenantKey,
-            context: {
-              linkText: body.linkText,
-              pageUrl: body.pageUrl,
-              reasons: body.reasons,
-              timestamp: new Date().toISOString()
-            }
-          }),
-        });
-        
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error('Report API error:', response.status, errorText);
-          resolve({ 
-            ok: false, 
-            error: `API Error: ${response.status} ${response.statusText}` 
-          });
-          return;
-        }
-        
-        const result = await response.json();
-        console.log('Report successful:', result);
-        resolve({ ok: true, message: result.message, reportId: result.reportId });
-        
-      } catch (e) {
-        console.error('Report fetch error:', e);
-        resolve({ 
-          ok: false, 
-          error: e instanceof Error ? e.message : 'Unknown error' 
-        });
-      }
-    });
-  });
+function str(v: unknown, max: number): string {
+  return typeof v === "string" ? v.slice(0, max) : "";
 }
 
-chrome.runtime.onInstalled.addListener(() => {
-  console.log("PhishGuard Lite installed with activeTab permission");
+function isHttpUrl(v: string): boolean {
+  try {
+    const u = new URL(v);
+    return u.protocol === "http:" || u.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+async function readSettings(): Promise<{ apiBase: string; tenantKey: string }> {
+  let s: Record<string, unknown> = {};
+  try {
+    s = await chrome.storage.sync.get(["apiBase", "tenantKey"]);
+  } catch {
+    /* fall through to local */
+  }
+  if (Object.keys(s).length === 0) {
+    try {
+      s = await chrome.storage.local.get(["apiBase", "tenantKey"]);
+    } catch {
+      /* defaults */
+    }
+  }
+  const apiBase = (typeof s.apiBase === "string" && s.apiBase.trim() ? s.apiBase.trim() : DEFAULT_API).replace(/\/$/, "");
+  return { apiBase, tenantKey: str(s.tenantKey, 128) };
+}
+
+async function postReport(msg: ReportMessage): Promise<Result> {
+  const url = str(msg.url, 2048);
+  if (!isHttpUrl(url)) return { ok: false, error: "Invalid URL" };
+
+  const { apiBase, tenantKey } = await readSettings();
+  if (!apiBase.startsWith("https://")) return { ok: false, error: "API address must use HTTPS" };
+
+  const reasons = Array.isArray(msg.reasons)
+    ? msg.reasons.slice(0, 10).map((r) => str(r, 200)).filter(Boolean)
+    : [];
+
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    const response = await fetch(`${apiBase}/report`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: ctrl.signal,
+      body: JSON.stringify({
+        url,
+        tenantKey,
+        score: typeof msg.score === "number" && Number.isFinite(msg.score) ? Math.round(msg.score) : undefined,
+        label: str(msg.label, 20) || undefined,
+        context: {
+          linkText: str(msg.linkText, 300),
+          pageUrl: str(msg.pageUrl, 200), // origin only
+          reasons,
+          timestamp: new Date().toISOString(),
+        },
+      }),
+    });
+    if (!response.ok) return { ok: false, error: `API error ${response.status}` };
+    const body = await response.json();
+    return { ok: body?.ok !== false, message: body?.message, reportId: body?.reportId };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error && e.name === "AbortError" ? "Timed out" : "Network error" };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+chrome.runtime.onMessage.addListener((message: ReportMessage, sender, sendResponse) => {
+  if (sender.id !== chrome.runtime.id) return; // ignore anything not from this extension
+  if (message?.type !== "pg_report_suspicious") return;
+  postReport(message).then(sendResponse, () => sendResponse({ ok: false, error: "Unexpected error" }));
+  return true; // keep the channel open for the async response
+});
+
+// There is no popup: clicking the toolbar icon opens the settings page.
+chrome.action.onClicked.addListener(() => {
+  void chrome.runtime.openOptionsPage();
 });

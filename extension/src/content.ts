@@ -1,174 +1,124 @@
 // src/content.ts
-import { scoreUrl } from './lib/scoring'
-import { attachBadge, attachBadgeWithReport } from './lib/utils'
-import { getApiBaseUrl } from '../config'
+// Runs on the pages listed in manifest.json (Gmail, Outlook on the web, LinkedIn).
+// All scoring is local: no link ever leaves the browser unless the user clicks "Report".
 
-type Settings = {
-  enabled?: boolean;
-  minScore?: number;
-  enableReporting?: boolean;
-  apiUrl?: string;
+import { analyzeLink } from "./lib/scoring";
+import { attachBadge, WRAP_CLASS } from "./lib/utils";
+
+type Settings = { enabled: boolean; minScore: number; enableReporting: boolean };
+
+const SETTING_KEYS = ["enabled", "minScore", "enableReporting"];
+let settings: Settings = { enabled: true, minScore: 20, enableReporting: true };
+
+// href each anchor was last evaluated with, and the badge we attached (if any)
+const evaluatedHref = new WeakMap<HTMLAnchorElement, string>();
+const badges = new WeakMap<HTMLAnchorElement, HTMLElement>();
+
+function clampScore(v: unknown): number {
+  const n = Number(v);
+  return Number.isFinite(n) ? Math.min(100, Math.max(0, Math.round(n))) : 20;
 }
 
-type CloudScore = {
-  score: number;
-  reasons: string[];
-  label: string;
-}
-
-let settings: Settings = { 
-  enabled: true, 
-  minScore: 20, 
-  enableReporting: false, 
-  apiUrl: getApiBaseUrl()
-};
-
-// Only run content script on specific sites where we have permission
-const allowedHosts = [
-  'mail.google.com',
-  'www.linkedin.com', 
-  'linkedin.com',
-  'outlook.office.com',
-  'outlook.live.com'
-];
-
-// Check if current site is allowed
-if (allowedHosts.includes(window.location.hostname)) {
-  initializeContentScript();
-} else {
-  console.log('PhishGuard Lite: Site not in allowed hosts list, content script disabled');
-}
-
-function initializeContentScript() {
-  chrome.storage.sync.get(["enabled", "minScore", "enableReporting", "apiUrl"], (s) => {
-    settings = { 
-      enabled: s.enabled ?? true, 
-      minScore: s.minScore ?? 20, 
-      enableReporting: s.enableReporting ?? false,
-      apiUrl: s.apiUrl ?? getApiBaseUrl()
-    };
-    console.log('PhishGuard settings loaded:', settings);
-    scanAllLinks();
-  });
-}
-
-async function getCloudScore(url: string, linkText: string | null): Promise<CloudScore | null> {
+async function loadSettings(): Promise<void> {
+  let stored: Record<string, unknown> = {};
   try {
-    // Validate URL before sending to API
-    if (!url || url.trim() === '' || url.startsWith('#') || url.startsWith('mailto:') || url.startsWith('javascript:')) {
-      console.log('Skipping invalid URL for cloud scoring:', url);
-      return null;
-    }
-    
-    // Try to construct a valid URL object to ensure it's well-formed
-    try {
-      new URL(url);
-    } catch (e) {
-      console.log('Malformed URL, skipping cloud scoring:', url);
-      return null;
-    }
-    
-    // Check if we're in a restricted context (like Gmail, LinkedIn, etc.)
-    const restrictedHosts = ['mail.google.com', 'www.linkedin.com', 'linkedin.com', 'outlook.office.com', 'outlook.live.com'];
-    if (restrictedHosts.includes(window.location.hostname)) {
-      console.log('Skipping cloud scoring in restricted context due to CSP restrictions:', window.location.hostname);
-      return null;
-    }
-    
-    const response = await fetch(`${settings.apiUrl}/score`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ url, linkText }),
-    });
-    
-    if (!response.ok) {
-      console.warn('Cloud scoring failed:', response.status, response.statusText);
-      return null;
-    }
-    
-    return await response.json();
-  } catch (error) {
-    console.warn('Cloud scoring error:', error);
-    return null;
+    stored = await chrome.storage.sync.get(SETTING_KEYS);
+  } catch {
+    /* sync unavailable (some managed profiles) */
   }
-}
-
-function combineScores(localScore: any, cloudScore: CloudScore | null) {
-  if (!cloudScore) return localScore;
-  
-  // Take the maximum score from both sources
-  const combinedScore = Math.max(localScore.score, cloudScore.score);
-  
-  // Combine reasons from both sources, removing duplicates
-  const allReasons = [...localScore.reasons];
-  cloudScore.reasons.forEach(reason => {
-    if (!allReasons.includes(reason)) {
-      allReasons.push(`[Cloud] ${reason}`);
+  if (Object.keys(stored).length === 0) {
+    try {
+      stored = await chrome.storage.local.get(SETTING_KEYS); // options page falls back to local
+    } catch {
+      /* use defaults */
     }
-  });
-  
-  // Determine label based on combined score
-  const label = combinedScore >= 50 ? "High Risk" : combinedScore >= 20 ? "Caution" : "Safe";
-  
-  return {
-    score: combinedScore,
-    reasons: allReasons,
-    label,
-    hasCloudScore: true
+  }
+  settings = {
+    enabled: stored.enabled !== false,
+    minScore: clampScore(stored.minScore ?? 20),
+    enableReporting: stored.enableReporting !== false,
   };
 }
 
-async function evaluateLink(a: HTMLAnchorElement) {
+function removeBadge(a: HTMLAnchorElement): void {
+  badges.get(a)?.remove();
+  badges.delete(a);
+}
+
+function evaluate(a: HTMLAnchorElement): void {
   if (!settings.enabled) return;
-  const href = a.getAttribute("href");
-  if (!href || href.startsWith("#") || href.startsWith("mailto:")) return;
+  if (a.closest(`.${WRAP_CLASS}`)) return; // our own UI
+  // Never touch links inside editable areas: badges would end up in the email being written.
+  if (a.isContentEditable) return;
 
-  const text = a.textContent?.trim() || null;
-  const localResult = scoreUrl(href, text);
-  
-  let finalResult = localResult;
-  
-  // Check if we're in a restricted context where cloud scoring won't work
-  const restrictedHosts = ['mail.google.com', 'www.linkedin.com', 'linkedin.com', 'outlook.office.com', 'outlook.live.com'];
-  const isRestrictedContext = restrictedHosts.includes(window.location.hostname);
-  
-  // If reporting is enabled and we're not in a restricted context, try cloud scoring
-  if (settings.enableReporting && !isRestrictedContext) {
-    try {
-      const cloudResult = await getCloudScore(href, text);
-      if (cloudResult) {
-        finalResult = combineScores(localResult, cloudResult);
-      }
-    } catch (error) {
-      console.warn('Cloud scoring failed, using local score only:', error);
-    }
-  }
-  
-  if (finalResult.score >= (settings.minScore || 20)) {
-    if (settings.enableReporting && !isRestrictedContext) {
-      attachBadgeWithReport(a, finalResult.label, finalResult.reasons);
-    } else {
-      attachBadge(a, finalResult.label, finalResult.reasons);
-    }
+  const raw = a.getAttribute("href");
+  if (!raw || raw.startsWith("#")) return;
+
+  const current = a.href; // absolute, resolved by the browser
+  if (evaluatedHref.get(a) === current) return; // already handled, nothing changed
+  evaluatedHref.set(a, current);
+  removeBadge(a);
+
+  const result = analyzeLink(current, a.textContent, location.href);
+  if (!result || result.score < settings.minScore) return;
+  badges.set(a, attachBadge(a, result, settings.enableReporting));
+}
+
+function scan(root: ParentNode): void {
+  if (root instanceof HTMLAnchorElement) evaluate(root);
+  root.querySelectorAll?.("a[href]").forEach((a) => evaluate(a as HTMLAnchorElement));
+}
+
+// Mutations arrive in bursts (Gmail re-renders whole threads): batch them.
+const pending = new Set<Element>();
+let flushTimer: number | undefined;
+
+function queue(node: Element): void {
+  if (node.classList?.contains(WRAP_CLASS)) return;
+  pending.add(node);
+  if (flushTimer === undefined) {
+    flushTimer = window.setTimeout(() => {
+      flushTimer = undefined;
+      const nodes = [...pending];
+      pending.clear();
+      for (const n of nodes) if (n.isConnected) scan(n);
+    }, 150);
   }
 }
 
-function scanAllLinks(root: ParentNode = document) {
-  const links = root.querySelectorAll("a[href]");
-  links.forEach(a => evaluateLink(a as HTMLAnchorElement));
+function rescanEverything(): void {
+  document.querySelectorAll(`.${WRAP_CLASS}`).forEach((w) => w.remove());
+  document.querySelectorAll<HTMLAnchorElement>("a[href]").forEach((a) => {
+    evaluatedHref.delete(a);
+    badges.delete(a);
+  });
+  scan(document);
 }
 
-const mo = new MutationObserver((m) => {
-  for (const rec of m) {
-    rec.addedNodes.forEach(node => {
-      if (node.nodeType === Node.ELEMENT_NODE) {
-        scanAllLinks(node as Element);
-      }
-    });
-  }
-});
+async function start(): Promise<void> {
+  await loadSettings();
+  scan(document);
 
-mo.observe(document.documentElement, { subtree: true, childList: true });
-scanAllLinks();
+  new MutationObserver((records) => {
+    for (const rec of records) {
+      if (rec.type === "attributes") {
+        if (rec.target instanceof HTMLAnchorElement) queue(rec.target);
+        continue;
+      }
+      rec.addedNodes.forEach((n) => n.nodeType === Node.ELEMENT_NODE && queue(n as Element));
+    }
+  }).observe(document.documentElement, {
+    subtree: true,
+    childList: true,
+    attributes: true,
+    attributeFilter: ["href"],
+  });
+
+  // Apply changes from the options page immediately, without reloading the mail tab.
+  chrome.storage.onChanged.addListener(async () => {
+    await loadSettings();
+    rescanEverything();
+  });
+}
+
+void start();

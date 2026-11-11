@@ -1,364 +1,254 @@
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, HttpUrl
-from typing import List, Optional
-from datetime import datetime
+"""PhishGuard Lite backend (FastAPI on AWS Lambda via Mangum).
+
+Public endpoints:   GET /, GET /health, POST /report, POST /score (legacy)
+Protected endpoints: /admin/api/*  (require `Authorization: Bearer <ADMIN_TOKEN>`)
+"""
+
 import json
-import boto3
+import logging
 import os
-from pathlib import Path
 import re
 import uuid
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import List, Optional
+from urllib.parse import urlparse
 
-app = FastAPI(title="PhishGuard Lite Backend", version="0.1.0")
+from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, HttpUrl
 
-# AWS S3 Configuration
-S3_BUCKET = os.environ.get('S3_BUCKET', 'phishguard-reports')
-S3_REGION = os.environ.get('AWS_REGION', 'us-east-1')
+from security import DISABLED, OK, check_admin
+from storage import ReportStore
 
-# Initialize S3 client
 try:
-    s3_client = boto3.client('s3', region_name=S3_REGION)
-    print(f"S3 client initialized for bucket: {S3_BUCKET}")
-except Exception as e:
-    print(f"Warning: S3 client initialization failed: {e}")
-    s3_client = None
+    import boto3
+except ImportError:  # local development without AWS libraries
+    boto3 = None
 
-# Fallback to local storage if S3 is not available
-LOCAL_STORAGE = []
-LOCAL_FILE = Path(__file__).parent / "reports" / "reports.json"
+log = logging.getLogger("phishguard")
+logging.getLogger().setLevel(logging.INFO)
 
-def ensure_local_storage():
-    """Ensure local storage directory exists"""
-    LOCAL_FILE.parent.mkdir(exist_ok=True)
+app = FastAPI(title="PhishGuard Lite Backend", version="1.1.0")
 
-def load_reports_from_s3():
-    """Load reports from S3"""
-    if not s3_client:
-        return []
-    
-    try:
-        response = s3_client.get_object(Bucket=S3_BUCKET, Key='reports/reports.json')
-        reports = json.loads(response['Body'].read().decode('utf-8'))
-        print(f"Loaded {len(reports)} reports from S3")
-        return reports
-    except s3_client.exceptions.NoSuchKey:
-        print("No existing reports found in S3, starting fresh")
-        return []
-    except Exception as e:
-        print(f"Error loading from S3: {e}, falling back to local storage")
-        return []
+# --- Configuration -----------------------------------------------------------------------
+# The two SAM templates in this repo name the bucket variable differently; accept both.
+S3_BUCKET = os.environ.get("S3_BUCKET") or os.environ.get("REPORTS_BUCKET") or "phishguard-reports"
+S3_REGION = os.environ.get("AWS_REGION", "us-east-1")
+LOCAL_DIR = Path(os.environ.get("REPORTS_DIR", "/tmp/phishguard-reports"))
 
-def save_reports_to_s3(reports):
-    """Save reports to S3"""
-    if not s3_client:
-        return False
-    
-    try:
-        s3_client.put_object(
-            Bucket=S3_BUCKET,
-            Key='reports/reports.json',
-            Body=json.dumps(reports, indent=2),
-            ContentType='application/json'
-        )
-        print(f"Saved {len(reports)} reports to S3")
-        return True
-    except Exception as e:
-        print(f"Error saving to S3: {e}")
-        return False
+MAX_URL_LEN = 2048
+MAX_TENANT_LEN = 128
+MAX_CONTEXT_BYTES = 4096
 
-def load_reports_from_local():
-    """Load reports from local file"""
-    try:
-        if LOCAL_FILE.exists():
-            with open(LOCAL_FILE, 'r') as f:
-                reports = json.load(f)
-                print(f"Loaded {len(reports)} reports from local storage")
-                return reports
-    except Exception as e:
-        print(f"Error loading local reports: {e}")
-    return []
+try:
+    _s3 = boto3.client("s3", region_name=S3_REGION) if boto3 else None
+except Exception as exc:  # noqa: BLE001
+    log.warning("S3 client initialisation failed: %s", exc)
+    _s3 = None
 
-def save_reports_to_local(reports):
-    """Save reports to local file"""
-    try:
-        ensure_local_storage()
-        with open(LOCAL_FILE, 'w') as f:
-            json.dump(reports, f, indent=2)
-        print(f"Saved {len(reports)} reports to local storage")
-        return True
-    except Exception as e:
-        print(f"Error saving local reports: {e}")
-        return False
+store = ReportStore(s3_client=_s3, bucket=S3_BUCKET, local_dir=LOCAL_DIR)
 
-# Initialize reports storage
-REPORTS_STORAGE = []
-if s3_client:
-    REPORTS_STORAGE = load_reports_from_s3()
-else:
-    REPORTS_STORAGE = load_reports_from_local()
+# --- Models --------------------------------------------------------------------------------
+BAD_TLDS = {"zip", "mov", "gq", "cf", "tk", "ml", "ga", "loan", "click", "country", "uno", "quest"}
+SHORTENERS = {"bit.ly", "t.co", "tinyurl.com", "goo.gl", "is.gd", "ow.ly", "buff.ly", "cutt.ly", "rebrand.ly"}
 
-def save_reports():
-    """Save reports to storage (S3 preferred, local fallback)"""
-    if s3_client:
-        if save_reports_to_s3(REPORTS_STORAGE):
-            return True
-    
-    # Fallback to local storage
-    return save_reports_to_local(REPORTS_STORAGE)
-
-BAD_TLDS = {"zip","mov","gq","cf","tk","ml","ga","loan","click","country","uno","quest"}
-SHORTENERS = {"bit.ly","t.co","tinyurl.com","goo.gl","is.gd","ow.ly","buff.ly","cutt.ly","rebrand.ly"}
 
 class ScoreRequest(BaseModel):
     url: HttpUrl
     linkText: Optional[str] = None
+
 
 class ScoreResponse(BaseModel):
     score: int
     reasons: List[str]
     label: str
 
+
 class ReportRequest(BaseModel):
     url: HttpUrl
-    context: dict
+    context: dict = {}
     tenantKey: Optional[str] = None
+    score: Optional[int] = None
+    label: Optional[str] = None
+
 
 class ReportResponse(BaseModel):
     ok: bool
     message: str
     reportId: Optional[str] = None
 
-def get_hostname(u: str) -> str:
-    # Basic extraction
-    return re.sub(r'^https?://', '', u).split('/')[0].lower()
 
-def get_tld(host: str) -> str:
-    parts = host.split('.')
-    return parts[-1] if parts else ""
+# --- Auth ----------------------------------------------------------------------------------
+def require_admin(authorization: Optional[str] = Header(default=None)) -> None:
+    """FastAPI dependency: reject admin requests without the correct bearer token."""
+    result = check_admin(authorization, os.environ.get("ADMIN_TOKEN", ""))
+    if result == DISABLED:
+        raise HTTPException(status_code=503, detail="Admin API is disabled: ADMIN_TOKEN is not configured")
+    if result != OK:
+        raise HTTPException(status_code=401, detail="Unauthorized", headers={"WWW-Authenticate": "Bearer"})
 
-def is_punycode(host: str) -> bool:
-    return 'xn--' in host
 
-def is_url_very_long(u: str) -> bool:
-    try:
-        from urllib.parse import urlparse
-        parsed = urlparse(u)
-        return len((parsed.path or "") + (parsed.query or "")) > 150
-    except Exception:
-        return False
-
-def text_domain_mismatch(u: str, link_text: Optional[str]) -> bool:
-    if not link_text:
-        return False
-    try:
-        from urllib.parse import urlparse
-        link_host = (urlparse(u).hostname or "").lower().removeprefix("www.")
-        m = re.search(r'([a-z0-9-]+\.)+[a-z]{2,}', link_text, re.I)
-        if not m:
-            return False
-        text_host = m.group(0).lower().removeprefix("www.")
-        return text_host and link_host and text_host != link_host
-    except Exception:
-        return False
-
+# --- Legacy server-side scoring ------------------------------------------------------------
+# NOTE: the extension scores links locally (see extension/src/lib/scoring.ts) and does not call
+# /score. This endpoint is kept for backwards compatibility and uses a smaller rule set.
 def score_url(u: str, link_text: Optional[str]) -> ScoreResponse:
     reasons: List[str] = []
     score = 0
+    parsed = urlparse(u)
+    host = (parsed.hostname or "").lower()
+    tld = host.rsplit(".", 1)[-1] if host else ""
 
-    host = get_hostname(u)
-    tld = get_tld(host)
     if tld in BAD_TLDS:
         score += 40
-        reasons.append(f"High-risk TLD: .{tld}")
-    if is_punycode(host):
+        reasons.append("High-risk TLD: .%s" % tld)
+    if "xn--" in host:
         score += 25
         reasons.append("Punycode/homoglyph in hostname")
     if host in SHORTENERS:
         score += 20
         reasons.append("URL shortener host")
-    if is_url_very_long(u):
+    if len((parsed.path or "") + (parsed.query or "")) > 150:
         score += 10
         reasons.append("Very long URL path/query")
-    if '@' in u:
+    if "@" in (parsed.path or "") or parsed.username or parsed.password:
         score += 20
-        reasons.append("Contains '@' in the path")
-    if text_domain_mismatch(u, link_text):
-        score += 15
-        reasons.append("Link text domain mismatch")
+        reasons.append("Contains '@' or credentials in the URL")
+    if link_text and host:
+        m = re.search(r"([a-z0-9-]+\.)+[a-z]{2,}", link_text[:300], re.I)
+        if m and m.group(0).lower().removeprefix("www.") != host.removeprefix("www."):
+            score += 15
+            reasons.append("Link text domain mismatch")
 
     label = "High Risk" if score >= 50 else ("Caution" if score >= 20 else "Safe")
     return ScoreResponse(score=score, reasons=reasons, label=label)
 
+
+# --- Public endpoints ----------------------------------------------------------------------
 @app.get("/")
 def root():
-    return {
-        "message": "PhishGuard Lite Backend API",
-        "version": "1.0.0",
-        "endpoints": {
-            "health": "/health",
-            "score": "/score",
-            "report": "/report",
-            "admin": "/admin/api/*"
-        },
-        "status": "running",
-        "storage": "S3" if s3_client else "Local",
-        "bucket": S3_BUCKET if s3_client else "N/A"
-    }
+    return {"message": "PhishGuard Lite Backend API", "version": app.version, "status": "running"}
+
 
 @app.get("/health")
 def health():
-    return {
-        "ok": True, 
-        "time": datetime.utcnow().isoformat() + "Z",
-        "storage": "S3" if s3_client else "Local",
-        "bucket": S3_BUCKET if s3_client else "N/A"
-    }
+    return {"ok": True, "time": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")}
+
 
 @app.post("/score", response_model=ScoreResponse)
 def score_endpoint(req: ScoreRequest):
-    try:
-        return score_url(str(req.url), req.linkText)
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    url = str(req.url)
+    if len(url) > MAX_URL_LEN:
+        raise HTTPException(status_code=422, detail="URL too long")
+    return score_url(url, req.linkText)
+
+
+def _clean_str_list(value, max_items: int = 10, max_len: int = 200) -> List[str]:
+    if not isinstance(value, list):
+        return []
+    return [str(v)[:max_len] for v in value[:max_items] if isinstance(v, (str, int, float))]
+
 
 @app.post("/report", response_model=ReportResponse)
 def report_endpoint(req: ReportRequest):
+    url = str(req.url)
+    if len(url) > MAX_URL_LEN:
+        raise HTTPException(status_code=422, detail="URL too long")
+    if req.tenantKey and len(req.tenantKey) > MAX_TENANT_LEN:
+        raise HTTPException(status_code=422, detail="tenantKey too long")
+    if len(json.dumps(req.context, default=str)) > MAX_CONTEXT_BYTES:
+        raise HTTPException(status_code=413, detail="Report context too large")
+
+    now = datetime.now(timezone.utc)
+    report_id = str(uuid.uuid4())
+    ctx = req.context if isinstance(req.context, dict) else {}
+    report = {
+        "id": report_id,
+        "url": url,
+        "tenantKey": req.tenantKey,
+        "score": req.score if req.score is not None and 0 <= req.score <= 1000 else None,
+        "label": (req.label or "")[:20] or None,
+        "reasons": _clean_str_list(ctx.get("reasons")),
+        "context": ctx,
+        "reportedAt": now.isoformat().replace("+00:00", "Z"),
+        "status": "new",
+    }
     try:
-        # Create a unique report ID
-        report_id = str(uuid.uuid4())
-        
-        # Create report object
-        report = {
-            "id": report_id,
-            "url": str(req.url),
-            "tenantKey": req.tenantKey,
-            "context": req.context,
-            "reportedAt": datetime.utcnow().isoformat() + "Z",
-            "status": "new"
-        }
-        
-        # Add to storage
-        REPORTS_STORAGE.append(report)
-        
-        # Save to storage
-        save_reports()
-        
-        print(f"Report received: {report_id} for URL: {req.url}")
-        
-        return ReportResponse(
-            ok=True, 
-            message=f"Report received and stored successfully. Report ID: {report_id}",
-            reportId=report_id
-        )
-    except Exception as e:
-        print(f"Error storing report: {e}")
-        return ReportResponse(
-            ok=False, 
-            message=f"Error storing report: {str(e)}"
-        )
+        store.add(report, when=now)
+    except Exception:  # noqa: BLE001
+        log.exception("Failed to store report %s", report_id)
+        # Never tell the user a report was saved when it wasn't.
+        raise HTTPException(status_code=503, detail="Could not store the report right now")
 
-# --- Admin Dashboard APIs & Static ---
-from fastapi.responses import FileResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
-from fastapi.middleware.cors import CORSMiddleware
-import os
-from pathlib import Path
-import datetime as _dt
+    log.info("Report stored: %s", report_id)
+    return ReportResponse(ok=True, message="Report received. Report ID: %s" % report_id, reportId=report_id)
 
-# CORS (allow same-origin dashboard usage)
+
+# --- Admin ---------------------------------------------------------------------------------
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=["*"],  # the extension and the dashboard call from other origins
+    allow_credentials=False,  # no cookies are used; the admin API relies on the bearer token
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
-# Static file serving for admin dashboards
+
 @app.get("/admin-dashboard.html")
 async def admin_dashboard():
-    """Serve the main admin dashboard HTML file"""
-    dashboard_path = Path(__file__).parent / "admin-dashboard.html"
-    if dashboard_path.exists():
-        return FileResponse(dashboard_path)
-    else:
-        raise HTTPException(status_code=404, detail="Admin dashboard not found")
+    """Static HTML only: it contains no data and needs the admin token to load any."""
+    path = Path(__file__).parent / "admin-dashboard.html"
+    if path.exists():
+        return FileResponse(path)
+    raise HTTPException(status_code=404, detail="Admin dashboard not found")
+
 
 @app.get("/admin/")
 async def admin_react():
-    """Serve the React admin interface"""
-    admin_path = Path(__file__).parent / "admin" / "index.html"
-    if admin_path.exists():
-        return FileResponse(admin_path)
-    else:
-        raise HTTPException(status_code=404, detail="Admin interface not found")
+    path = Path(__file__).parent / "admin" / "index.html"
+    if path.exists():
+        return FileResponse(path)
+    raise HTTPException(status_code=404, detail="Admin interface not found")
 
-# Mount static files for admin assets
-admin_static_path = Path(__file__).parent / "admin"
-if admin_static_path.exists():
-    app.mount("/admin/static", StaticFiles(directory=str(admin_static_path)), name="admin_static")
 
-@app.get("/admin/api/reports")
+_admin_static = Path(__file__).parent / "admin"
+if _admin_static.exists():
+    app.mount("/admin/static", StaticFiles(directory=str(_admin_static)), name="admin_static")
+
+
+@app.get("/admin/api/reports", dependencies=[Depends(require_admin)])
 def admin_list_reports(limit: int = 200):
-    """List all reports with optional filtering"""
-    try:
-        # Return reports in reverse chronological order (newest first)
-        sorted_reports = sorted(REPORTS_STORAGE, key=lambda x: x.get('reportedAt', ''), reverse=True)
-        return {
-            "items": sorted_reports[:limit],
-            "total": len(REPORTS_STORAGE),
-            "message": f"Found {len(REPORTS_STORAGE)} reports",
-            "storage": "S3" if s3_client else "Local"
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error listing reports: {str(e)}")
+    items = store.list_recent(limit)
+    return {"items": items, "total": len(items), "storage": store.kind}
 
-@app.get("/admin/api/report/{report_id}")
-def admin_get_report(report_id: str):
-    """Get a specific report by ID"""
-    try:
-        for report in REPORTS_STORAGE:
-            if report.get('id') == report_id:
-                return report
-        raise HTTPException(status_code=404, detail="Report not found")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error retrieving report: {str(e)}")
 
-@app.get("/admin/api/reports/summary")
+@app.get("/admin/api/reports/summary", dependencies=[Depends(require_admin)])
 def admin_reports_summary():
-    """Get summary statistics for reports"""
-    try:
-        total_reports = len(REPORTS_STORAGE)
-        today = datetime.utcnow().date()
-        today_reports = sum(1 for r in REPORTS_STORAGE 
-                          if datetime.fromisoformat(r['reportedAt'].replace('Z', '+00:00')).date() == today)
-        
-        # Count by tenant
-        tenant_counts = {}
-        for report in REPORTS_STORAGE:
-            tenant = report.get('tenantKey', 'unknown')
-            tenant_counts[tenant] = tenant_counts.get(tenant, 0) + 1
-        
-        return {
-            "totalReports": total_reports,
-            "todayReports": today_reports,
-            "tenantBreakdown": tenant_counts,
-            "lastUpdated": datetime.utcnow().isoformat() + "Z",
-            "storage": "S3" if s3_client else "Local",
-            "bucket": S3_BUCKET if s3_client else "N/A"
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error generating summary: {str(e)}")
+    summary = store.summary()
+    summary["lastUpdated"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    return summary
 
-# Lambda handler for AWS SAM deployment
-def lambda_handler(event, context):
-    """AWS Lambda handler for the FastAPI application"""
+
+@app.get("/admin/api/report/{report_id}", dependencies=[Depends(require_admin)])
+def admin_get_report(report_id: str):
+    report = store.get(report_id)
+    if report is None:
+        raise HTTPException(status_code=404, detail="Report not found")
+    return report
+
+
+# --- AWS Lambda entry point ----------------------------------------------------------------
+try:
     from mangum import Mangum
-    
-    # Create Mangum adapter for FastAPI
-    adapter = Mangum(app)
-    
-    # Handle the Lambda event
-    response = adapter(event, context)
-    
-    return response
+
+    _adapter = Mangum(app)
+except ImportError:  # not running on Lambda
+    _adapter = None
+
+
+def lambda_handler(event, context):
+    if _adapter is None:
+        raise RuntimeError("mangum is not installed")
+    return _adapter(event, context)

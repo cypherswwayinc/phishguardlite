@@ -1,10 +1,10 @@
 {
   "manifest_version": 3,
   "name": "PhishGuard Lite",
-  "version": "0.2.5",
+  "version": "0.3.0",
   "description": "Inline phishing risk labels and one-click reporting. Local heuristics; report only on user action.",
   "action": {
-    "default_title": "PhishGuard Lite"
+    "default_title": "PhishGuard Lite settings"
   },
   "icons": {
     "16": "icons/icon16.png",
@@ -12,16 +12,13 @@
     "128": "icons/icon128.png"
   },
   "permissions": [
-    "storage",
-    "activeTab",
-    "scripting"
+    "storage"
   ],
   "host_permissions": [
     "https://phishguard.cyphersway.com/*"
   ],
   "background": {
-    "service_worker": "background.js",
-    "type": "module"
+    "service_worker": "background.js"
   },
   "options_ui": {
     "page": "index.html"
@@ -35,6 +32,9 @@
       ],
       "js": [
         "content.js"
+      ],
+      "css": [
+        "content.css"
       ],
       "run_at": "document_idle"
     }

@@ -18,29 +18,18 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: extension/package-lock.json
 
       - name: Install dependencies
         working-directory: extension
-        run: |
-          if [ -f package-lock.json ]; then
-            npm ci
-          else
-            npm install
-          fi
+        run: npm install --no-audit --no-fund
+
+      - name: Unit tests
+        working-directory: extension
+        run: npm test
 
       - name: Build extension
         working-directory: extension
         run: npm run build
-
-      - name: Prepare extension files
-        working-directory: extension
-        run: |
-          # Copy necessary files to dist folder
-          cp manifest.json dist/
-          cp src/options/index.html dist/
-          cp -r public/icons dist/
 
       - name: Create Chrome Web Store ZIP
         working-directory: extension/dist

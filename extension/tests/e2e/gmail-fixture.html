@@ -1,0 +1,22 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Inbox - Gmail (test fixture)</title></head>
+<body>
+<div id="msg" class="a3s">
+<p>1 <a id="redir-bad" href="https://www.google.com/url?q=https%3A%2F%2Fsecure-paypa1.tk%2Flogin&amp;sa=D&amp;source=gmail">Verify your account at paypal.com</a></p>
+<p>2 <a id="shortener" href="https://bit.ly/abc123">Open your invoice</a></p>
+<p>3 <a id="legit-ca" href="https://www.amazon.ca/deals">Amazon.ca deals</a></p>
+<p>4 <a id="userinfo" href="https://paypal.com@evil-site.top/login">paypal.com sign in</a></p>
+<p>5 <a id="legit-google" href="https://www.google.com/url?q=https%3A%2F%2Fwww.cyphersway.com%2F&amp;sa=D">Our website</a></p>
+<p>6 <a id="ip-host" href="http://192.168.4.5/login">Secure login</a></p>
+<p>7 <a id="brand-sub" href="https://paypal.com.account-verify.net/signin">PayPal</a></p>
+<p>8 <a id="file-link" href="https://files.example.com/a1b2">Download invoice.pdf</a></p>
+<p>9 <a id="hash-link" href="#top">Back to top</a> <a id="mail-link" href="mailto:x@example.com">email us</a></p>
+<p>10 <a id="safelink" href="https://nam02.safelinks.protection.outlook.com/?url=https%3A%2F%2Flogin.gq%2Fx&amp;data=05">Review document</a></p>
+</div>
+<div id="compose" contenteditable="true" role="textbox">Draft: see <a id="compose-link" href="https://bit.ly/draft">this</a></div>
+<script>
+window.__composeInitial = document.getElementById('compose').innerHTML;
+setTimeout(()=>{ const a=document.createElement('a'); a.id='late-direct'; a.href='https://login.gq/verify'; a.textContent='late link'; document.body.appendChild(a); }, 1200);
+setTimeout(()=>{ const d=document.createElement('div'); d.innerHTML='<p><a id="late-nested" href="https://tinyurl.com/zzz">nested late</a></p>'; document.getElementById('msg').appendChild(d); }, 1800);
+setTimeout(()=>{ const a=document.createElement('a'); a.id='late-href'; a.href='https://example.org/ok'; a.textContent='changes later'; document.body.appendChild(a); }, 1000);
+setTimeout(()=>{ document.getElementById('late-href').href='https://bit.ly/swapped'; }, 2600);
+</script></body></html>
