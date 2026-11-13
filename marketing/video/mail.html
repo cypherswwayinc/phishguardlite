@@ -29,6 +29,10 @@ var css = "html,body{margin:0;height:100%;overflow:hidden;background:#EDF1F4;fon
 + "#cap{position:fixed;left:0;right:0;bottom:0;height:66px;background:#13233A;color:#fff;display:flex;align-items:center;justify-content:center;font:600 20px 'Inter Display',Inter,sans-serif;letter-spacing:-.01em;text-align:center;padding:0 30px}"
 + "#cur{position:fixed;left:0;top:0;z-index:2147483647;pointer-events:none;filter:drop-shadow(0 1px 1px rgba(0,0,0,.35))}";
 var sheet = new CSSStyleSheet(); sheet.replaceSync(css); document.adoptedStyleSheets = [sheet];
+window.setVertical = function(){ var v = new CSSStyleSheet(); v.replaceSync(
+  "#app{display:block;height:640px}#side{width:auto;padding:26px 22px 0}.nav{display:none}.logo{font-size:17px;margin:0}"
++ "#main{margin:150px 16px 0;padding:22px 20px 26px}#subject{font-size:18px}#msg{font-size:13px}"
++ "#cap{height:160px;font-size:23px;line-height:1.25;padding:0 34px}"); document.adoptedStyleSheets = document.adoptedStyleSheets.concat([v]); };
 window.setCap = function(t){ document.getElementById('cap').textContent = t; };
 window.setCur = function(x,y){ var c=document.getElementById('cur'); c.style.transform='translate('+(x-3)+'px,'+(y-1)+'px)'; };
 </script></body></html>

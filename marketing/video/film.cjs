@@ -3,14 +3,15 @@ const { chromium } = require('playwright');
 const fs = require('fs'), os = require('os'), path = require('path'), { spawn } = require('child_process');
 const EXT = '/home/claude/phishguardlite/extension/dist';
 const OUT = __dirname, PREVIEW = process.argv.includes('--preview');
-const FPS = 30, W = 800, H = 450, DSF = 2.4;
+const VERT = process.argv.includes('--vertical'), SUF = VERT ? '-v' : '';
+const FPS = 30, W = VERT ? 450 : 800, H = VERT ? 800 : 450, DSF = 2.4, SCALE = VERT ? '1080:1920' : '1920:1080';
 const mail = fs.readFileSync(path.join(OUT, 'mail.html'), 'utf8'), card = fs.readFileSync(path.join(OUT, 'card.html'), 'utf8');
 const ease = t => t < .5 ? 2*t*t : 1 - Math.pow(-2*t + 2, 2)/2;
 
 function encoder(name) {
-  const tmp = path.join(OUT, name + '.part.mp4');
+  name += SUF; const tmp = path.join(OUT, name + '.part.mp4');
   const ff = spawn('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(FPS), '-c:v', 'mjpeg', '-i', '-',
-    '-vf', 'scale=1920:1080:flags=lanczos,format=yuv420p', '-c:v', 'libx264', '-crf', '18', '-preset', 'veryfast', '-pix_fmt', 'yuv420p', '-r', String(FPS), tmp], { stdio: ['pipe', 'inherit', 'inherit'] });
+    '-vf', `scale=${SCALE}:flags=lanczos,format=yuv420p`, '-c:v', 'libx264', '-crf', '18', '-preset', 'veryfast', '-pix_fmt', 'yuv420p', '-r', String(FPS), tmp], { stdio: ['pipe', 'inherit', 'inherit'] });
   let n = 0;
   return { write: async (buf, times = 1) => { for (let i = 0; i < times; i++) { n++; if (!ff.stdin.write(buf)) await new Promise(r => ff.stdin.once('drain', r)); } },
     done: () => new Promise((res, rej) => { ff.on('exit', c => { if (c === 0) { fs.renameSync(tmp, path.join(OUT, name + '.mp4')); res(n); } else rej(new Error('ffmpeg ' + c)); }); ff.stdin.end(); }) };
@@ -33,14 +34,14 @@ function encoder(name) {
   };
   const cpage = await ctx.newPage(); await cpage.setContent(card);
   for (const [name, c] of Object.entries(cards)) {
-    await cpage.evaluate(c => { document.body.className = c.cls; document.body.innerHTML = c.html; }, c);
+    await cpage.evaluate(([c, v]) => { document.body.className = c.cls + (v ? ' v' : ''); document.documentElement.className = v ? 'v' : ''; document.body.innerHTML = v ? c.html.replace('<br>The address', ' The address').replace('<br>Your emails', ' Your emails') : c.html; }, [c, VERT]);
     await cpage.waitForTimeout(150);
-    await cpage.screenshot({ path: path.join(OUT, name + '.png') });
+    await cpage.screenshot({ path: path.join(OUT, name + SUF + '.png') });
     if (PREVIEW) continue;
-    const tmp = path.join(OUT, name + '.part.mp4');
-    await new Promise((res, rej) => spawn('ffmpeg', ['-y', '-loglevel', 'error', '-framerate', String(FPS), '-i', path.join(OUT, name + '.png'),
-      '-vf', `scale=1920:1080:flags=lanczos,format=yuv420p,loop=-1:1,trim=duration=${c.secs},fade=t=in:st=0:d=0.4,fade=t=out:st=${c.secs - 0.4}:d=0.4`,
-      '-c:v', 'libx264', '-crf', '18', '-preset', 'veryfast', '-pix_fmt', 'yuv420p', '-r', String(FPS), tmp], { stdio: 'inherit' }).on('exit', x => x === 0 ? (fs.renameSync(tmp, path.join(OUT, name + '.mp4')), res()) : rej(new Error('ffmpeg'))));
+    const tmp = path.join(OUT, name + SUF + '.part.mp4');
+    await new Promise((res, rej) => spawn('ffmpeg', ['-y', '-loglevel', 'error', '-framerate', String(FPS), '-i', path.join(OUT, name + SUF + '.png'),
+      '-vf', `scale=${SCALE}:flags=lanczos,format=yuv420p,loop=-1:1,trim=duration=${c.secs},fade=t=in:st=0:d=0.4,fade=t=out:st=${c.secs - 0.4}:d=0.4`,
+      '-c:v', 'libx264', '-crf', '18', '-preset', 'veryfast', '-pix_fmt', 'yuv420p', '-r', String(FPS), tmp], { stdio: 'inherit' }).on('exit', x => x === 0 ? (fs.renameSync(tmp, path.join(OUT, name + SUF + '.mp4')), res()) : rej(new Error('ffmpeg'))));
   }
   await cpage.close();
 
@@ -48,16 +49,18 @@ function encoder(name) {
   await page.goto('https://mail.google.com/mail/u/0/#inbox');
   await page.waitForSelector('#lnk + .pg-wrap .pg-badge', { timeout: 15000 });
   const box = async sel => { const b = await page.locator(sel).boundingBox(); return { x: b.x + b.width / 2, y: b.y + b.height / 2 }; };
+  if (VERT) await page.evaluate(() => window.setVertical());
+  await page.waitForTimeout(400);
+  let cur = VERT ? { x: 330, y: 560 } : { x: 640, y: 330 };
   const link = await box('#lnk'), badge = await box('#lnk + .pg-wrap .pg-badge'), report = await box('#lnk + .pg-wrap .pg-report-btn');
-  let cur = { x: 640, y: 330 };
   const place = async p => { cur = p; await page.mouse.move(p.x, p.y); await page.evaluate(p => window.setCur(p.x, p.y), p); };
   const cap = t => page.evaluate(t => window.setCap(t), t);
   await place(cur);
 
   if (PREVIEW) {
-    await cap('The link says paypal.com.'); await page.screenshot({ path: path.join(OUT, 'p1.jpg'), type: 'jpeg', quality: 92 });
-    await place(badge); await page.waitForTimeout(200); await cap('Hover to see why, and where it really goes.'); await page.screenshot({ path: path.join(OUT, 'p2.jpg'), type: 'jpeg', quality: 92 });
-    await place(report); await page.mouse.click(report.x, report.y); await page.waitForTimeout(600); await cap('One click reports it.'); await page.screenshot({ path: path.join(OUT, 'p3.jpg'), type: 'jpeg', quality: 92 });
+    await cap('The link says paypal.com.'); await page.screenshot({ path: path.join(OUT, 'p1'+SUF+'.jpg'), type: 'jpeg', quality: 92 });
+    await place(badge); await page.waitForTimeout(200); await cap('Hover to see why, and where it really goes.'); await page.screenshot({ path: path.join(OUT, 'p2'+SUF+'.jpg'), type: 'jpeg', quality: 92 });
+    await place(report); await page.mouse.click(report.x, report.y); await page.waitForTimeout(600); await cap('One click reports it.'); await page.screenshot({ path: path.join(OUT, 'p3'+SUF+'.jpg'), type: 'jpeg', quality: 92 });
     await ctx.close(); return;
   }
 
@@ -73,7 +76,7 @@ function encoder(name) {
   await cap('One click reports it.'); await glide(report, 0.7); await hold(0.4);
   await page.mouse.click(report.x, report.y);
   await page.waitForFunction(() => /Reported/.test(document.querySelector('#lnk + .pg-wrap .pg-report-btn').textContent), null, { timeout: 8000 });
-  await glide({ x: report.x + 46, y: report.y + 34 }, 0.4);
+  await glide(VERT ? { x: report.x + 20, y: report.y + 40 } : { x: report.x + 46, y: report.y + 34 }, 0.4);
   await hold(2.0);
   console.log('demo frames', await enc.done());
   await ctx.close();
