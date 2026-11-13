@@ -30,7 +30,7 @@ function encoder(name) {
   const cards = {
     intro: { cls: '', html: '<div class="brand">PhishGuard Lite</div><h1>The link says PayPal.<br>The address says paypa1.</h1><p>One wrong click is all a phishing email needs.</p>', secs: 4.5 },
     privacy: { cls: 'dark', html: '<h2>Checked inside your browser.<br>Your emails never leave it.</h2><p>Works in Gmail, Outlook on the web and LinkedIn.</p>', secs: 4.5 },
-    end: { cls: 'dark', html: '<div class="brand">PhishGuard Lite</div><div class="row"><div class="col"><h3>Free for Chrome</h3><p>Warnings on risky links, for anyone.</p></div><div class="col"><h3>Business plan</h3><p>Your whole team covered, with reported links reviewed by CypherSway. $29 CAD a month.</p></div></div><div><span class="url">cyphersway.com/phishguard</span></div><div class="foot">Made by CypherSway Inc. in Vancouver, BC</div>', secs: 7 },
+    end: { cls: 'dark', html: '<div class="brand">PhishGuard Lite</div><div class="row"><div class="col"><h3>Free for Chrome</h3><p>Warnings on risky links, for anyone.</p></div><div class="col"><h3>Business plan</h3><p>Your whole team covered, with reported links reviewed by CypherSway. $29 CAD a month.</p></div></div><div><span class="url">cyphersway.com/phishguard</span></div><div class="foot">Made by CypherSway Inc.</div>', secs: 7 },
   };
   const cpage = await ctx.newPage(); await cpage.setContent(card);
   for (const [name, c] of Object.entries(cards)) {
@@ -44,6 +44,7 @@ function encoder(name) {
       '-c:v', 'libx264', '-crf', '18', '-preset', 'veryfast', '-pix_fmt', 'yuv420p', '-r', String(FPS), tmp], { stdio: 'inherit' }).on('exit', x => x === 0 ? (fs.renameSync(tmp, path.join(OUT, name + SUF + '.mp4')), res()) : rej(new Error('ffmpeg'))));
   }
   await cpage.close();
+  if (process.argv.includes('--cards-only')) { await ctx.close(); return; }
 
   // ---------- demo scene (real extension) ----------
   await page.goto('https://mail.google.com/mail/u/0/#inbox');
