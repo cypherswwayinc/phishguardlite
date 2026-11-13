@@ -129,3 +129,11 @@ def test_name_falls_back_to_payer_name_and_other_events_are_ignored(env):
     assert run(ping, env) == {"ok": True, "ignored": "invoice.paid"}
     with pytest.raises(billing.WebhookError):
         run(b"not json", env)
+
+
+def test_business_name_collected_by_the_payment_link_is_used(env):
+    tenants, _, _ = env
+    body = json.loads(checkout(business=None))
+    body["data"]["object"]["collected_information"] = {"business_name": "Forret Legal Corp"}
+    run(json.dumps(body).encode(), env)
+    assert tenants.list_public()[0]["name"] == "Forret Legal Corp"

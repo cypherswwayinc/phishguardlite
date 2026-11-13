@@ -1,0 +1,147 @@
+<!-- wp:html -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+body{overflow-x:hidden}
+#pgl{--paper:#EDF1F4;--white:#fff;--ink:#13233A;--soft:#4A5A70;--line:#C7D1DA;--risk:#B92A1A;--risk-bg:#FBE3DF;--caution:#7A4E00;--caution-bg:#FFE7A3;--act:#1D5BD0;
+position:relative;width:100vw;margin-left:calc(50% - 50vw);background:var(--paper);color:var(--ink);font-family:"Instrument Sans",system-ui,-apple-system,"Segoe UI",sans-serif;font-size:18px;line-height:1.55;text-align:left;-webkit-font-smoothing:antialiased}
+#pgl *,#pgl *::before,#pgl *::after{box-sizing:border-box}
+#pgl h1,#pgl h2,#pgl h3,#pgl p,#pgl ul,#pgl ol,#pgl li,#pgl dl,#pgl dd,#pgl dt,#pgl figure{margin:0;padding:0;border:0;background:none;text-transform:none;letter-spacing:normal;color:inherit;font-family:inherit}
+#pgl ul,#pgl ol{list-style:none}
+#pgl li::before{content:none}
+#pgl a{color:var(--act);text-decoration:underline;text-underline-offset:3px;box-shadow:none}
+#pgl a:focus-visible,#pgl summary:focus-visible,#pgl .pgl-pill:focus-visible{outline:3px solid var(--act);outline-offset:3px;border-radius:4px}
+#pgl .pgl-in{max-width:1120px;margin:0 auto;padding:0 28px}
+#pgl .pgl-band{padding:88px 0}
+#pgl h1,#pgl h2,#pgl h3{font-family:"Bricolage Grotesque","Instrument Sans",system-ui,sans-serif;font-weight:800;line-height:1.04;letter-spacing:-.02em;color:var(--ink)}
+#pgl h1{font-size:clamp(40px,6.1vw,78px);max-width:11.5em}
+#pgl h2{font-size:clamp(30px,3.6vw,46px);max-width:16em}
+#pgl h3{font-size:22px;font-weight:700;line-height:1.2;letter-spacing:-.01em}
+#pgl .pgl-lede{font-size:21px;line-height:1.5;color:var(--soft);max-width:34em;margin-top:22px}
+#pgl .pgl-sub{color:var(--soft);max-width:38em;margin-top:16px}
+#pgl .pgl-mono{font-family:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;font-size:.84em;letter-spacing:-.01em;word-break:break-all}
+
+#pgl .pgl-btns{display:flex;flex-wrap:wrap;gap:14px;margin-top:34px}
+#pgl a.pgl-btn{display:inline-block;padding:15px 26px;border-radius:999px;font-weight:600;font-size:17px;line-height:1.2;text-decoration:none;border:2px solid var(--ink);transition:background .15s,color .15s}
+#pgl a.pgl-btn--solid{background:var(--ink);color:#fff}
+#pgl a.pgl-btn--solid:hover{background:#0A1524}
+#pgl a.pgl-btn--line{background:transparent;color:var(--ink)}
+#pgl a.pgl-btn--line:hover{background:var(--ink);color:#fff}
+#pgl .pgl-note{font-size:15px;color:var(--soft);margin-top:14px}
+
+/* hero */
+#pgl .pgl-hero{padding:76px 0 96px}
+#pgl .pgl-hero .pgl-in{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:56px;align-items:center}
+#pgl .pgl-mail{background:var(--white);border:1px solid var(--line);border-radius:14px;box-shadow:0 30px 60px -28px rgba(19,35,58,.38);font-size:15.5px;line-height:1.5}
+#pgl .pgl-mail-top{padding:16px 20px;border-bottom:1px solid #E3E9EE}
+#pgl .pgl-mail-subj{font-weight:700;font-size:17px}
+#pgl .pgl-mail-from{color:var(--soft);font-size:13.5px;margin-top:3px}
+#pgl .pgl-mail-body{padding:20px 20px 150px;position:relative}
+#pgl .pgl-mail-body p+p,#pgl .pgl-confirm{margin-top:12px}
+#pgl .pgl-fakelink{color:#1a0dab;text-decoration:underline}
+#pgl .pgl-flag{position:relative;display:inline-block;white-space:nowrap}
+#pgl .pgl-pill{display:inline-block;font-size:12px;font-weight:700;line-height:1;padding:5px 9px;border-radius:999px;margin-left:5px;vertical-align:2px;cursor:default}
+#pgl .pgl-pill--high{background:var(--risk-bg);color:var(--risk);border:1px solid #E9A79E}
+#pgl .pgl-pill--caution{background:var(--caution-bg);color:var(--caution);border:1px solid #E5C766}
+#pgl .pgl-pill--report{background:var(--act);color:#fff;border:1px solid var(--act)}
+#pgl .pgl-tip{position:absolute;left:0;top:calc(100% + 10px);width:290px;max-width:76vw;background:#17212F;color:#fff;border-radius:10px;padding:13px 15px;font-size:13px;line-height:1.45;white-space:normal;z-index:2;animation:pglTip .5s .9s both}
+#pgl .pgl-tip::before{content:"";position:absolute;left:22px;top:-6px;width:12px;height:12px;background:#17212F;transform:rotate(45deg)}
+#pgl .pgl-tip b{display:block;margin-bottom:5px}
+#pgl .pgl-tip .pgl-r{display:block;padding-left:14px;position:relative}
+#pgl .pgl-tip .pgl-r::before{content:"";position:absolute;left:2px;top:.62em;width:4px;height:4px;border-radius:50%;background:#fff}
+#pgl .pgl-tip .pgl-goes{display:block;margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.22)}
+@keyframes pglTip{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){#pgl .pgl-tip{animation:none}}
+
+/* examples */
+#pgl .pgl-white{background:var(--white)}
+#pgl .pgl-cases{margin-top:44px;border-top:2px solid var(--ink)}
+#pgl .pgl-case{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr) minmax(0,1.3fr);gap:28px;padding:22px 0;border-bottom:1px solid var(--line);align-items:start}
+#pgl .pgl-case--head{padding:12px 0;font-size:14px;font-weight:600;color:var(--soft)}
+#pgl .pgl-case dt{font-size:13px;font-weight:600;color:var(--soft);display:none}
+#pgl .pgl-case .pgl-why{color:var(--soft);font-size:16px}
+#pgl .pgl-case .pgl-pill{margin-left:0;margin-right:8px}
+#pgl .pgl-mark{background:var(--risk-bg);color:var(--risk);font-weight:600;border-radius:3px;padding:0 2px}
+
+/* steps */
+#pgl .pgl-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:40px;margin-top:48px;counter-reset:s}
+#pgl .pgl-steps li{counter-increment:s;border-top:2px solid var(--ink);padding-top:18px}
+#pgl .pgl-steps li::before{content:counter(s);display:block;font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:44px;line-height:1;margin-bottom:14px;position:static;background:none;width:auto;height:auto}
+#pgl .pgl-steps p{color:var(--soft);margin-top:8px;font-size:17px}
+
+/* privacy band */
+#pgl .pgl-dark{background:var(--ink);color:#fff}
+#pgl .pgl-dark h2{color:#fff}
+#pgl .pgl-dark .pgl-sub{color:#B9C6D6}
+#pgl .pgl-dark a{color:#9CC2FF}
+#pgl .pgl-facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 56px;margin-top:40px}
+#pgl .pgl-facts li{padding:18px 0;border-top:1px solid rgba(255,255,255,.2);font-size:18px}
+#pgl .pgl-facts b{display:block;font-family:"Bricolage Grotesque",sans-serif;font-size:21px;font-weight:700;margin-bottom:2px}
+#pgl .pgl-facts span{color:#B9C6D6}
+
+/* pricing */
+#pgl .pgl-plans{display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);gap:28px;margin-top:48px;align-items:stretch}
+#pgl .pgl-plan{background:var(--white);border:1px solid var(--line);border-radius:18px;padding:34px 34px 36px;display:flex;flex-direction:column}
+#pgl .pgl-plan--biz{border:2px solid var(--ink);box-shadow:10px 10px 0 var(--ink)}
+#pgl .pgl-price{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:56px;line-height:1;letter-spacing:-.03em;margin-top:14px}
+#pgl .pgl-price small{font-family:"Instrument Sans",sans-serif;font-size:17px;font-weight:500;letter-spacing:0;color:var(--soft);margin-left:6px}
+#pgl .pgl-plan>p{color:var(--soft);margin-top:10px;font-size:17px}
+#pgl .pgl-plan ul{margin:22px 0 28px;flex:1}
+#pgl .pgl-plan ul li{padding:10px 0 10px 30px;border-top:1px solid #E3E9EE;position:relative;font-size:17px}
+#pgl .pgl-plan ul li::before{content:"";position:absolute;left:4px;top:17px;width:12px;height:7px;border-left:2.5px solid var(--ink);border-bottom:2.5px solid var(--ink);transform:rotate(-45deg);background:none;border-radius:0}
+#pgl .pgl-plan .pgl-btn{align-self:flex-start}
+
+/* faq + footer */
+#pgl .pgl-faq{margin-top:36px;border-top:2px solid var(--ink);max-width:820px}
+#pgl details{border-bottom:1px solid var(--line)}
+#pgl summary{cursor:pointer;list-style:none;padding:20px 40px 20px 0;font-weight:600;font-size:19px;position:relative}
+#pgl summary::-webkit-details-marker{display:none}
+#pgl summary::after{content:"+";position:absolute;right:6px;top:14px;font-size:28px;font-weight:400;line-height:1.2}
+#pgl details[open] summary::after{content:"\2212"}
+#pgl details p{color:var(--soft);padding:0 40px 22px 0;max-width:40em}
+#pgl .pgl-foot{background:var(--white);border-top:1px solid var(--line);padding:56px 0}
+#pgl .pgl-foot .pgl-in{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) minmax(0,1fr);gap:40px;font-size:16px}
+#pgl .pgl-foot h3{font-size:18px;margin-bottom:10px}
+#pgl .pgl-foot p,#pgl .pgl-foot li{color:var(--soft);line-height:1.7}
+
+@media (max-width:900px){
+#pgl{font-size:17px}
+#pgl .pgl-band{padding:60px 0}
+#pgl .pgl-hero{padding:44px 0 64px}
+#pgl .pgl-hero .pgl-in,#pgl .pgl-plans,#pgl .pgl-foot .pgl-in{grid-template-columns:minmax(0,1fr)}
+#pgl .pgl-hero .pgl-in{gap:40px}
+#pgl .pgl-steps,#pgl .pgl-facts{grid-template-columns:minmax(0,1fr);gap:0}
+#pgl .pgl-steps li{margin-top:28px}
+#pgl .pgl-case{grid-template-columns:minmax(0,1fr);gap:10px}
+#pgl .pgl-case--head{display:none}
+#pgl .pgl-case dt{display:block;margin-bottom:2px}
+#pgl .pgl-in{padding:0 20px}
+#pgl .pgl-plan{padding:26px 22px 28px}
+#pgl .pgl-plan--biz{box-shadow:6px 6px 0 var(--ink)}
+#pgl a.pgl-btn{width:100%;text-align:center}
+}
+</style>
+<div id="pgl">
+<section class="pgl-hero">
+<div class="pgl-in" style="display:block">
+<h1>You're in. Your key is on its way.</h1>
+<p class="pgl-lede">Thanks for subscribing to PhishGuard Lite for Business. We have emailed your organisation key to the address you used at checkout. It usually arrives within a few minutes.</p>
+</div>
+</section>
+<section class="pgl-band pgl-white">
+<div class="pgl-in">
+<h2>Three steps for each computer</h2>
+<ol class="pgl-steps">
+<li><h3>Install the extension</h3><p>Add PhishGuard Lite to Chrome from the Chrome Web Store.</p><p><a data-pgl="store" href="https://cyphersway.com/phishguard/">Get PhishGuard Lite</a></p></li>
+<li><h3>Open its settings</h3><p>Click the PhishGuard Lite icon in the Chrome toolbar. The settings page opens.</p></li>
+<li><h3>Paste your key</h3><p>Copy the key from our email into the Tenant Key box and save. That computer is now part of your team.</p></li>
+</ol>
+<p class="pgl-sub">No email after 15 minutes? Check your spam folder, then write to <a href="mailto:contact@cyphersway.com">contact@cyphersway.com</a> or call <a href="tel:+16043595045">+1 (604) 359-5045</a>. We can also set up every computer for you.</p>
+</div>
+</section>
+</div>
+<script>
+(function(){var STORE="";if(STORE)document.querySelectorAll('#pgl a[data-pgl="store"]').forEach(function(a){a.href=STORE;a.target="_blank";a.rel="noopener";});})();
+</script>
+<!-- /wp:html -->

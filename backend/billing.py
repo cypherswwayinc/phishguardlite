@@ -53,12 +53,17 @@ def verify_signature(payload: bytes, header: Optional[str], secret: str, now: Op
 
 
 def _business_name(session: Dict) -> str:
-    """Prefer a 'Business name' custom field on the payment link, then the payer's name, then email."""
+    """Prefer the business name collected at checkout, then the payer's name, then email."""
     for field in session.get("custom_fields") or []:
         value = ((field.get("text") or {}).get("value") or "").strip()
         if value and "business" in (field.get("key") or "").lower():
             return value
     details = session.get("customer_details") or {}
+    collected = session.get("collected_information") or {}
+    # "Collect business names" on a Payment Link fills business_name.
+    for value in (collected.get("business_name"), details.get("business_name")):
+        if isinstance(value, str) and value.strip():
+            return value.strip()
     return (details.get("name") or details.get("email") or "Customer").strip()
 
 
