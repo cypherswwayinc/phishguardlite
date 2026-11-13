@@ -37,7 +37,7 @@ Globals:
         ThrottlingRateLimit: 10
   Function:
     Timeout: 30
-    Runtime: python3.9
+    Runtime: python3.12
     Environment:
       Variables:
         REPORTS_BUCKET: "pg-reports-${AWS::AccountId}-${AWS::Region}"
