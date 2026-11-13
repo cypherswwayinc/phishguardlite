@@ -28,9 +28,9 @@ function encoder(name) {
 
   // ---------- card scenes ----------
   const cards = {
-    intro: { cls: '', html: '<div class="brand">PhishGuard Lite</div><h1>The link says PayPal.<br>The address says paypa1.</h1><p>One wrong click is all a phishing email needs.</p>', secs: 4.5 },
-    privacy: { cls: 'dark', html: '<h2>Checked inside your browser.<br>Your emails never leave it.</h2><p>Works in Gmail, Outlook on the web and LinkedIn.</p>', secs: 4.5 },
-    end: { cls: 'dark', html: '<div class="brand">PhishGuard Lite</div><div class="row"><div class="col"><h3>Free for Chrome</h3><p>Warnings on risky links, for anyone.</p></div><div class="col"><h3>Business plan</h3><p>Your whole team covered, with reported links reviewed by CypherSway. $29 CAD a month.</p></div></div><div><span class="url">cyphersway.com/phishguard</span></div><div class="foot">Made by CypherSway Inc.</div>', secs: 7 },
+    intro: { cls: '', html: '<div class="brand">PhishGuard Lite</div><h1>The link says PayPal.<br>The address says paypa1.</h1><p>One wrong click is all a phishing email needs.</p>', secs: 2.8 },
+    privacy: { cls: 'dark', html: '<h2>Checked inside your browser.<br>Your emails never leave it.</h2><p>Works in Gmail, Outlook on the web and LinkedIn.</p>', secs: 6.4 },
+    end: { cls: 'dark', html: '<div class="brand">PhishGuard Lite</div><div class="row"><div class="col"><h3>Free for Chrome</h3><p>Warnings on risky links, for anyone.</p></div><div class="col"><h3>Business plan</h3><p>Your whole team covered, with reported links reviewed by CypherSway. $29 CAD a month.</p></div></div><div><span class="url">cyphersway.com/phishguard</span></div><div class="foot">Made by CypherSway Inc.</div>', secs: 13.6 },
   };
   const cpage = await ctx.newPage(); await cpage.setContent(card);
   for (const [name, c] of Object.entries(cards)) {
@@ -66,19 +66,27 @@ function encoder(name) {
   }
 
   const enc = encoder('demo');
-  const hold = async secs => enc.write(await shot(), Math.round(secs * FPS));
+  // Timeline follows the narration. Times are seconds from the start of this scene (video time minus 2.8).
+  let written = 0;
+  const put = async (times = 1) => { await enc.write(await shot(), times); written += times; };
+  const until = async t => { const n = Math.round(t * FPS) - written; if (n > 0) await put(n); };
   const glide = async (to, secs) => { const from = { ...cur }, n = Math.round(secs * FPS);
-    for (let i = 1; i <= n; i++) { const t = ease(i / n); await place({ x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t }); await enc.write(await shot()); } };
+    for (let i = 1; i <= n; i++) { const t = ease(i / n); await place({ x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t }); await put(); } };
 
-  await cap('This email looks like it is from PayPal.'); await hold(2.4);
-  await cap('The link even says paypal.com.'); await glide({ x: link.x, y: link.y + 2 }, 1.1); await hold(1.4);
-  await cap('PhishGuard Lite flags it before you click.'); await glide(badge, 0.7); await page.waitForTimeout(250); await hold(1.8);
-  await cap('See why, and where it really goes: paypa1, not paypal.'); await hold(4.2);
-  await cap('One click reports it.'); await glide(report, 0.7); await hold(0.4);
+  await cap('Phishing emails rely on one trick: a link can say anything.'); await until(4.7);
+  await cap('This one says paypal.com.'); await glide({ x: link.x, y: link.y + 2 }, 1.1); await until(7.7);
+  await cap('PhishGuard Lite checks where every link really goes, and flags the risky ones before you click.'); await until(11.6);
+  await glide({ x: badge.x + 4, y: badge.y + 30 }, 0.8); await until(16.5);        // points at the badge, not on it yet
+  await cap('Hover over the badge to see why.'); await until(17.0);
+  await glide(badge, 0.4); await page.waitForTimeout(250); await until(19.2);      // tooltip opens
+  await cap('The real address is paypa1, a look-alike.'); await until(23.8);
+  await cap('If something looks wrong, one click reports it.'); await until(25.9);
+  await glide(report, 0.7); await until(27.6);
   await page.mouse.click(report.x, report.y);
   await page.waitForFunction(() => /Reported/.test(document.querySelector('#lnk + .pg-wrap .pg-report-btn').textContent), null, { timeout: 8000 });
+  await put();
   await glide(VERT ? { x: report.x + 20, y: report.y + 40 } : { x: report.x + 46, y: report.y + 34 }, 0.4);
-  await hold(2.0);
+  await until(29.8);
   console.log('demo frames', await enc.done());
   await ctx.close();
 })().catch(e => { console.error(e); process.exit(1); });
