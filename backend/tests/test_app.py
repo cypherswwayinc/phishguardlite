@@ -18,7 +18,7 @@ def fresh_store(monkeypatch):
 
 
 def make_report(**over):
-    data = {"url": "https://bit.ly/abc", "tenantKey": "acme", "score": 20, "label": "Caution",
+    data = {"url": "https://bit.ly/abc", "score": 20, "label": "Caution",
             "context": {"linkText": "x", "pageUrl": "https://mail.google.com", "reasons": ["URL shortener host"]}}
     data.update(over)
     return backend.ReportRequest(**data)
@@ -68,8 +68,8 @@ def test_admin_dependency_requires_the_token(monkeypatch):
 def test_every_admin_api_route_is_protected():
     """Wiring check: each /admin/api route decorator must carry Depends(require_admin)."""
     import inspect
-    lines = [l for l in inspect.getsource(backend).splitlines() if l.startswith("@app.get") and "/admin/api" in l]
-    assert len(lines) == 3, lines
+    lines = [l for l in inspect.getsource(backend).splitlines() if l.startswith("@app.") and "/admin/api" in l]
+    assert len(lines) == 7, lines
     assert all("Depends(require_admin)" in l for l in lines), lines
 
 
@@ -85,3 +85,61 @@ def test_admin_listing_and_missing_report():
     with pytest.raises(backend.HTTPException) as e:
         backend.admin_get_report("00000000-0000-0000-0000-000000000000")
     assert e.value.status_code == 404
+
+
+# --- organisation keys ---------------------------------------------------------------------
+def create_tenant(name="Acme Law"):
+    return backend.admin_create_tenant(backend.TenantCreate(name=name))
+
+
+def test_valid_key_attributes_the_report_to_the_customer_and_never_stores_the_key():
+    t = create_tenant()
+    resp = backend.report_endpoint(make_report(tenantKey=t["key"]))
+    saved = backend.store.get(resp.reportId)
+    assert saved["tenantId"] == t["id"] and saved["tenantName"] == "Acme Law"
+    assert t["key"] not in str(saved) and "tenantKey" not in saved
+
+
+def test_unknown_or_malformed_key_is_rejected():
+    for bad in ["acme", "pg_" + "x" * 30, "pg_short"]:
+        with pytest.raises(backend.HTTPException) as e:
+            backend.report_endpoint(make_report(tenantKey=bad))
+        assert e.value.status_code == 401
+
+
+def test_disabled_customer_key_stops_working_and_can_be_re_enabled():
+    t = create_tenant()
+    backend.admin_disable_tenant(t["id"])
+    with pytest.raises(backend.HTTPException) as e:
+        backend.report_endpoint(make_report(tenantKey=t["key"]))
+    assert e.value.status_code == 401
+    backend.admin_enable_tenant(t["id"])
+    assert backend.report_endpoint(make_report(tenantKey=t["key"])).ok
+
+
+def test_report_without_a_key_is_kept_as_anonymous():
+    resp = backend.report_endpoint(make_report())
+    saved = backend.store.get(resp.reportId)
+    assert saved["tenantId"] is None
+
+
+def test_customers_only_see_their_own_reports_when_filtered():
+    a, b = create_tenant("A Co"), create_tenant("B Co")
+    backend.report_endpoint(make_report(tenantKey=a["key"]))
+    backend.report_endpoint(make_report(tenantKey=a["key"]))
+    backend.report_endpoint(make_report(tenantKey=b["key"]))
+    assert backend.admin_list_reports(tenant=a["id"])["total"] == 2
+    assert backend.admin_list_reports(tenant=b["id"])["total"] == 1
+
+
+def test_key_is_stored_only_as_a_hash():
+    t = create_tenant()
+    blob = " ".join(k + v.decode() for k, v in backend.store.backend.client.objs.items() if k.startswith("tenants/"))
+    assert t["key"] not in blob
+
+
+def test_tenant_admin_routes_are_protected():
+    import inspect
+    lines = [l for l in inspect.getsource(backend).splitlines() if "/admin/api/tenants" in l and l.startswith("@app.")]
+    assert len(lines) == 4, lines
+    assert all("Depends(require_admin)" in l for l in lines), lines

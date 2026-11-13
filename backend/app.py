@@ -22,6 +22,7 @@ from pydantic import BaseModel, HttpUrl
 
 from security import DISABLED, OK, check_admin
 from storage import ReportStore
+from tenants import TenantStore
 
 try:
     import boto3
@@ -75,6 +76,10 @@ class ReportRequest(BaseModel):
     label: Optional[str] = None
 
 
+class TenantCreate(BaseModel):
+    name: str
+
+
 class ReportResponse(BaseModel):
     ok: bool
     message: str
@@ -89,6 +94,10 @@ def require_admin(authorization: Optional[str] = Header(default=None)) -> None:
         raise HTTPException(status_code=503, detail="Admin API is disabled: ADMIN_TOKEN is not configured")
     if result != OK:
         raise HTTPException(status_code=401, detail="Unauthorized", headers={"WWW-Authenticate": "Bearer"})
+
+
+def _tenants() -> TenantStore:
+    return TenantStore(store.backend)
 
 
 # --- Legacy server-side scoring ------------------------------------------------------------
@@ -161,13 +170,27 @@ def report_endpoint(req: ReportRequest):
     if len(json.dumps(req.context, default=str)) > MAX_CONTEXT_BYTES:
         raise HTTPException(status_code=413, detail="Report context too large")
 
+    # An organisation key, when sent, must belong to an active customer. No key = an anonymous
+    # report (kept, but not shown in any customer's dashboard).
+    tenant = None
+    if req.tenantKey:
+        try:
+            tenant = _tenants().lookup(req.tenantKey)
+        except Exception:  # noqa: BLE001
+            log.exception("Tenant lookup failed")
+            raise HTTPException(status_code=503, detail="Could not verify the organisation key right now")
+        if tenant is None:
+            raise HTTPException(status_code=401, detail="Invalid or inactive organisation key")
+
     now = datetime.now(timezone.utc)
     report_id = str(uuid.uuid4())
     ctx = req.context if isinstance(req.context, dict) else {}
     report = {
         "id": report_id,
         "url": url,
-        "tenantKey": req.tenantKey,
+        # The raw key is never stored: only the customer it belongs to.
+        "tenantId": tenant["id"] if tenant else None,
+        "tenantName": tenant["name"] if tenant else None,
         "score": req.score if req.score is not None and 0 <= req.score <= 1000 else None,
         "label": (req.label or "")[:20] or None,
         "reasons": _clean_str_list(ctx.get("reasons")),
@@ -219,8 +242,10 @@ if _admin_static.exists():
 
 
 @app.get("/admin/api/reports", dependencies=[Depends(require_admin)])
-def admin_list_reports(limit: int = 200):
-    items = store.list_recent(limit)
+def admin_list_reports(limit: int = 200, tenant: Optional[str] = None):
+    items = store.list_recent(500 if tenant else limit)
+    if tenant:
+        items = [r for r in items if r.get("tenantId") == tenant][: max(1, min(limit, 500))]
     return {"items": items, "total": len(items), "storage": store.kind}
 
 
@@ -229,6 +254,36 @@ def admin_reports_summary():
     summary = store.summary()
     summary["lastUpdated"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     return summary
+
+
+@app.post("/admin/api/tenants", dependencies=[Depends(require_admin)])
+def admin_create_tenant(req: TenantCreate):
+    """Create a customer. The returned `key` is shown once and cannot be retrieved later."""
+    try:
+        return _tenants().create(req.name)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+
+
+@app.get("/admin/api/tenants", dependencies=[Depends(require_admin)])
+def admin_list_tenants():
+    return {"items": _tenants().list_public()}
+
+
+@app.post("/admin/api/tenants/{tenant_id}/disable", dependencies=[Depends(require_admin)])
+def admin_disable_tenant(tenant_id: str):
+    rec = _tenants().set_active(tenant_id, False)
+    if rec is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    return {k: v for k, v in rec.items()}
+
+
+@app.post("/admin/api/tenants/{tenant_id}/enable", dependencies=[Depends(require_admin)])
+def admin_enable_tenant(tenant_id: str):
+    rec = _tenants().set_active(tenant_id, True)
+    if rec is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    return rec
 
 
 @app.get("/admin/api/report/{report_id}", dependencies=[Depends(require_admin)])

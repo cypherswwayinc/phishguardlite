@@ -445,7 +445,7 @@
                             ${reasons.map(r => `<span class="reason-tag">${esc(r)}</span>`).join('')}
                             ${hasMoreReasons ? `<span class="reason-tag">+${allReasons.length - 3} more</span>` : ''}
                         </td>
-                        <td>${esc(report.tenantKey || 'unknown')}</td>
+                        <td>${esc(report.tenantName || report.tenantKey || 'unknown')}</td>
                         <td>${esc(formatDate(report.reportedAt))}</td>
                         <td>${report.context ? '📋' : '-'}</td>
                     </tr>
@@ -523,7 +523,7 @@
             let filteredReports = allReports;
             if (selectedTenant) {
                 filteredReports = allReports.filter(report => 
-                    report.tenantKey === selectedTenant
+                    (report.tenantName || report.tenantKey || 'unknown') === selectedTenant
                 );
             }
             

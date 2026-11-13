@@ -150,7 +150,7 @@ class ReportStore:
         )
         tenants: Dict[str, int] = {}
         for r in self._load(keys[:TENANT_SAMPLE]) + legacy[-TENANT_SAMPLE:]:
-            tenant = r.get("tenantKey") or "unknown"
+            tenant = r.get("tenantName") or r.get("tenantKey") or "unknown"
             tenants[tenant] = tenants.get(tenant, 0) + 1
         return {
             "totalReports": len(keys) + len(legacy),
