@@ -1,6 +1,6 @@
 """Original background tune, synthesized here: soft pad chords, a gentle pluck pattern and a quiet bass."""
 import numpy as np, wave
-SR, DUR, BPM = 48000, 52.6, 96
+SR, DUR, BPM = 48000, 39.2, 96
 beat = 60 / BPM; bar = 4 * beat
 n = int(SR * DUR); t = np.arange(n) / SR
 L = np.zeros(n); R = np.zeros(n)
