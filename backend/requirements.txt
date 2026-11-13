@@ -1,4 +1,4 @@
-# Runtime dependencies for AWS Lambda (Python 3.12). boto3 is provided by the Lambda runtime.
+# Runtime dependencies for AWS Lambda (Python 3.13). boto3 is provided by the Lambda runtime.
 fastapi>=0.115,<0.116
 pydantic>=2.9,<3
 mangum>=0.19,<0.20
