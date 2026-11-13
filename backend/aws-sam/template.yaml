@@ -13,6 +13,19 @@ Parameters:
     Default: ""
     AllowedPattern: "^$|^.{16,}$"
     Description: "Bearer token that protects /admin/api/* (min 16 characters). Leave empty to disable the admin API."
+  StripeWebhookSecret:
+    Type: String
+    NoEcho: true
+    Default: ""
+    Description: "Stripe webhook signing secret (starts with whsec_). Leave empty to disable /stripe/webhook."
+  MailFrom:
+    Type: String
+    Default: ""
+    Description: "SES-verified sender for the key email, e.g. PhishGuard Lite <phishguard@cyphersway.com>."
+  ExtensionUrl:
+    Type: String
+    Default: ""
+    Description: "Chrome Web Store link included in the key email (optional)."
 
 Resources:
   # IAM Role for Lambda function
@@ -42,6 +55,9 @@ Resources:
                 Resource:
                   - !Sub 'arn:aws:s3:::phishguard-reports-1755667751/*'
                   - !Sub 'arn:aws:s3:::phishguard-reports-1755667751'
+              - Effect: Allow
+                Action: ses:SendEmail
+                Resource: "*"
 
   # API Gateway
   PhishGuardApi:
@@ -71,6 +87,9 @@ Resources:
         Variables:
           S3_BUCKET: phishguard-reports-1755667751
           ADMIN_TOKEN: !Ref AdminToken
+          STRIPE_WEBHOOK_SECRET: !Ref StripeWebhookSecret
+          MAIL_FROM: !Ref MailFrom
+          EXTENSION_URL: !Ref ExtensionUrl
       Role: !GetAtt PhishGuardFunctionRole.Arn
       Events:
         Api:

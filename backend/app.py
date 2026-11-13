@@ -14,12 +14,13 @@ from pathlib import Path
 from typing import List, Optional
 from urllib.parse import urlparse
 
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, HttpUrl
 
+import billing
 from security import DISABLED, OK, check_admin
 from storage import ReportStore
 from tenants import TenantStore
@@ -51,6 +52,12 @@ except Exception as exc:  # noqa: BLE001
     _s3 = None
 
 store = ReportStore(s3_client=_s3, bucket=S3_BUCKET, local_dir=LOCAL_DIR)
+
+try:
+    _ses = boto3.client("ses", region_name=os.environ.get("SES_REGION") or S3_REGION) if boto3 else None
+except Exception as exc:  # noqa: BLE001
+    log.warning("SES client initialisation failed: %s", exc)
+    _ses = None
 
 # --- Models --------------------------------------------------------------------------------
 BAD_TLDS = {"zip", "mov", "gq", "cf", "tk", "ml", "ga", "loan", "click", "country", "uno", "quest"}
@@ -207,6 +214,25 @@ def report_endpoint(req: ReportRequest):
 
     log.info("Report stored: %s", report_id)
     return ReportResponse(ok=True, message="Report received. Report ID: %s" % report_id, reportId=report_id)
+
+
+# --- Billing -------------------------------------------------------------------------------
+@app.post("/stripe/webhook")
+async def stripe_webhook(request: Request):
+    """Called by Stripe (not by browsers). Authenticated by the Stripe-Signature header."""
+    payload = await request.body()
+    try:
+        return billing.handle_event(
+            payload,
+            request.headers.get("stripe-signature"),
+            secret=os.environ.get("STRIPE_WEBHOOK_SECRET", ""),
+            tenants=_tenants(),
+            send_mail=billing.ses_mailer(_ses, os.environ.get("MAIL_FROM", "")),
+            install_url=os.environ.get("EXTENSION_URL", ""),
+            support_email=os.environ.get("SUPPORT_EMAIL", "contact@cyphersway.com"),
+        )
+    except billing.WebhookError as exc:
+        raise HTTPException(status_code=exc.status, detail=exc.detail)
 
 
 # --- Admin ---------------------------------------------------------------------------------

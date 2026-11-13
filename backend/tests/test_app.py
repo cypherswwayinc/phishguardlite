@@ -69,7 +69,7 @@ def test_every_admin_api_route_is_protected():
     """Wiring check: each /admin/api route decorator must carry Depends(require_admin)."""
     import inspect
     lines = [l for l in inspect.getsource(backend).splitlines() if l.startswith("@app.") and "/admin/api" in l]
-    assert len(lines) == 7, lines
+    assert len(lines) == 7, lines  # /stripe/webhook is signature-authenticated instead
     assert all("Depends(require_admin)" in l for l in lines), lines
 
 

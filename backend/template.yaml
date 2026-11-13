@@ -14,6 +14,19 @@ Parameters:
     Default: ""
     AllowedPattern: "^$|^.{16,}$"
     Description: "Bearer token that protects /admin/api/* (min 16 characters). Leave empty to disable the admin API."
+  StripeWebhookSecret:
+    Type: String
+    NoEcho: true
+    Default: ""
+    Description: "Stripe webhook signing secret (starts with whsec_). Leave empty to disable /stripe/webhook."
+  MailFrom:
+    Type: String
+    Default: ""
+    Description: "SES-verified sender for the key email, e.g. PhishGuard Lite <phishguard@cyphersway.com>."
+  ExtensionUrl:
+    Type: String
+    Default: ""
+    Description: "Chrome Web Store link included in the key email (optional)."
 
 Globals:
   Api:
@@ -86,10 +99,17 @@ Resources:
       Policies:
         - S3CrudPolicy:
             BucketName: "pg-reports-${AWS::AccountId}-${AWS::Region}"
+        - Statement:
+            - Effect: Allow
+              Action: ses:SendEmail
+              Resource: "*"
       Environment:
         Variables:
           REPORTS_BUCKET: "pg-reports-${AWS::AccountId}-${AWS::Region}"
           ADMIN_TOKEN: !Ref AdminToken
+          STRIPE_WEBHOOK_SECRET: !Ref StripeWebhookSecret
+          MAIL_FROM: !Ref MailFrom
+          EXTENSION_URL: !Ref ExtensionUrl
 
 Conditions:
   HasCustomDomain: !Not [!Equals [!Ref CustomDomainName, ""]]

@@ -93,6 +93,13 @@
         .api-status.error .status-indicator {
             background: #dc3545;
         }
+        .customer-form { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+        .customer-form input { padding: 9px 12px; border: 1px solid #ccd3dd; border-radius: 6px; min-width: 240px; font-size: 14px; }
+        .new-key { background: #f0f9f1; border: 1px solid #9ad0a2; border-radius: 8px; padding: 14px 16px; margin-bottom: 14px; }
+        .new-key p { margin: 4px 0 8px; font-size: 13px; }
+        .new-key code { display: inline-block; padding: 6px 10px; background: #fff; border: 1px solid #cfd8dc; border-radius: 4px; font-size: 14px; user-select: all; word-break: break-all; }
+        .small-btn { padding: 5px 12px; border: 1px solid #b6c0cc; background: #fff; border-radius: 5px; cursor: pointer; font-size: 13px; }
+        .small-btn:hover { background: #f1f4f8; }
         .section {
             margin-bottom: 40px;
         }
@@ -282,6 +289,24 @@
                 </select>
             </div>
             
+            <!-- Customers Section -->
+            <div class="section" id="customersSection">
+                <h2>🏢 Customers</h2>
+                <form id="customerForm" class="customer-form" onsubmit="createCustomer(event)">
+                    <label for="customerName">Business name</label>
+                    <input type="text" id="customerName" maxlength="100" required placeholder="e.g. Acme Law">
+                    <button type="submit" class="refresh-btn" style="margin:0">Create customer</button>
+                </form>
+                <div id="newKeyBox" class="new-key" hidden>
+                    <strong>Organisation key for <span id="newKeyName"></span></strong>
+                    <p>Copy it now. It is shown only once and cannot be recovered.</p>
+                    <code id="newKeyValue"></code>
+                    <button type="button" class="small-btn" onclick="copyNewKey(this)">Copy</button>
+                </div>
+                <div id="customerError" class="error" hidden></div>
+                <div id="customersContainer"><div class="loading">Loading customers...</div></div>
+            </div>
+
             <!-- Reports Section -->
             <div class="section">
                 <h2>📊 Recent Phishing Reports</h2>
@@ -315,10 +340,13 @@
             }
             return t;
         }
-        async function apiFetch(path) {
+        async function apiFetch(path, options) {
             const token = getToken(false);
             if (!token) throw new Error('Admin token required');
-            const res = await fetch(`${API_BASE}${path}`, { headers: { Authorization: `Bearer ${token}` } });
+            const opts = options || {};
+            const headers = { Authorization: `Bearer ${token}` };
+            if (opts.body) headers['Content-Type'] = 'application/json';
+            const res = await fetch(`${API_BASE}${path}`, { method: opts.method || 'GET', headers, body: opts.body });
             if (res.status === 401) {
                 try { sessionStorage.removeItem('pgAdminToken'); } catch (e) {}
                 throw new Error('Unauthorized: wrong admin token (reload to try again)');
@@ -328,12 +356,63 @@
             return res.json();
         }
         
+        // --- Customers (organisation keys) ---
+        async function loadCustomers() {
+            const box = document.getElementById('customersContainer');
+            try {
+                const data = await apiFetch('/admin/api/tenants');
+                const items = data.items || [];
+                if (!items.length) { box.innerHTML = '<div class="empty-state">No customers yet. Create one above, or wait for a Stripe payment.</div>'; return; }
+                box.innerHTML = `<table class="reports-table"><thead><tr><th>Business</th><th>Email</th><th>Key</th><th>Created</th><th>Source</th><th>Status</th><th></th></tr></thead><tbody>${items.map(t => `
+                    <tr>
+                        <td>${esc(t.name)}</td>
+                        <td>${esc(t.email || '')}</td>
+                        <td><code>${esc(t.keyHint || '')}</code></td>
+                        <td>${esc((t.createdAt || '').slice(0, 10))}</td>
+                        <td>${esc(t.source === 'stripe' ? 'Stripe' : 'Manual')}</td>
+                        <td>${t.active ? 'Active' : 'Disabled'}</td>
+                        <td><button type="button" class="small-btn" data-id="${esc(t.id)}" data-action="${t.active ? 'disable' : 'enable'}" onclick="toggleCustomer(this)">${t.active ? 'Disable' : 'Enable'}</button></td>
+                    </tr>`).join('')}</tbody></table>`;
+            } catch (e) {
+                box.innerHTML = `<div class="error">${esc(e.message)}</div>`;
+            }
+        }
+        async function createCustomer(event) {
+            event.preventDefault();
+            const input = document.getElementById('customerName');
+            const err = document.getElementById('customerError');
+            err.hidden = true;
+            try {
+                const t = await apiFetch('/admin/api/tenants', { method: 'POST', body: JSON.stringify({ name: input.value.trim() }) });
+                document.getElementById('newKeyName').textContent = t.name;
+                document.getElementById('newKeyValue').textContent = t.key;
+                document.getElementById('newKeyBox').hidden = false;
+                input.value = '';
+                loadCustomers();
+            } catch (e) {
+                err.textContent = `Could not create the customer: ${e.message}`;
+                err.hidden = false;
+            }
+        }
+        async function toggleCustomer(button) {
+            const id = encodeURIComponent(button.dataset.id), action = button.dataset.action;
+            button.disabled = true;
+            try { await apiFetch(`/admin/api/tenants/${id}/${action}`, { method: 'POST' }); }
+            catch (e) { const err = document.getElementById('customerError'); err.textContent = e.message; err.hidden = false; }
+            loadCustomers();
+        }
+        async function copyNewKey(button) {
+            try { await navigator.clipboard.writeText(document.getElementById('newKeyValue').textContent); button.textContent = 'Copied'; }
+            catch (e) { button.textContent = 'Select and copy manually'; }
+        }
+
         let allReports = [];
         let currentFilter = '';
         
         // Initialize dashboard
         document.addEventListener('DOMContentLoaded', function() {
             refreshData();
+            loadCustomers();
             // Auto-refresh every 30 seconds
             setInterval(refreshData, 30000);
         });

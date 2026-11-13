@@ -36,7 +36,7 @@ class TenantStore:
     def _key(self, digest: str) -> str:
         return f"{PREFIX}{digest}.json"
 
-    def create(self, name: str) -> Dict:
+    def create(self, name: str, extra: Optional[Dict] = None) -> Dict:
         """Create a tenant. Returns the record plus the raw key (the only time it is visible)."""
         name = (name or "").strip()[:NAME_MAX]
         if not name:
@@ -49,6 +49,9 @@ class TenantStore:
             "createdAt": _now(),
             "keyHint": raw[:7] + "..." + raw[-4:],
         }
+        for k, v in (extra or {}).items():
+            if k not in record and v is not None:
+                record[k] = str(v)[:200]
         self.backend.put(self._key(hash_key(raw)), json.dumps(record).encode("utf-8"))
         return {**record, "key": raw}
 
@@ -84,3 +87,14 @@ class TenantStore:
                 self.backend.put(self._key(digest), json.dumps(rec).encode("utf-8"))
                 return rec
         return None
+
+    def disable_subscription(self, subscription_id: str) -> int:
+        """Disable every key bought through the given Stripe subscription. Returns how many."""
+        if not subscription_id:
+            return 0
+        count = 0
+        for rec in self._all():
+            if rec.get("stripeSubscriptionId") == subscription_id and rec.get("active"):
+                self.set_active(rec["id"], False)
+                count += 1
+        return count
