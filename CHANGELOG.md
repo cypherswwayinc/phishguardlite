@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.3.1
+- Fix: the "Why flagged" tooltip was cut off in short emails because Gmail and Outlook clip the message area. It now floats above the page, stays inside the window and flips upward near the bottom edge.
+
 ## 0.3.0
 
 ### Fixed

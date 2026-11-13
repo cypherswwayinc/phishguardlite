@@ -3,7 +3,7 @@
 // All scoring is local: no link ever leaves the browser unless the user clicks "Report".
 
 import { analyzeLink } from "./lib/scoring";
-import { attachBadge, WRAP_CLASS } from "./lib/utils";
+import { attachBadge, WRAP_CLASS, hideTooltip } from "./lib/utils";
 
 type Settings = { enabled: boolean; minScore: number; enableReporting: boolean };
 
@@ -41,6 +41,7 @@ async function loadSettings(): Promise<void> {
 }
 
 function removeBadge(a: HTMLAnchorElement): void {
+  hideTooltip(badges.get(a));
   badges.get(a)?.remove();
   badges.delete(a);
 }
@@ -87,6 +88,7 @@ function queue(node: Element): void {
 }
 
 function rescanEverything(): void {
+  hideTooltip();
   document.querySelectorAll(`.${WRAP_CLASS}`).forEach((w) => w.remove());
   document.querySelectorAll<HTMLAnchorElement>("a[href]").forEach((a) => {
     evaluatedHref.delete(a);

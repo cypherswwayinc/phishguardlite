@@ -312,6 +312,38 @@
     tip.appendChild(dest);
     return tip;
   }
+  var FLOAT_CLASS = "pg-float";
+  var GAP = 6;
+  var EDGE = 8;
+  var floating = null;
+  var floatingOwner = null;
+  function hideTooltip(owner) {
+    if (owner && owner !== floatingOwner) return;
+    floating?.remove();
+    floating = null;
+    floatingOwner = null;
+  }
+  function showTooltip(wrap, badge, analysis) {
+    if (floatingOwner === wrap) return;
+    hideTooltip();
+    const host = el("div", `${WRAP_CLASS} ${FLOAT_CLASS}`);
+    host.dataset.open = "1";
+    host.appendChild(buildTooltip(analysis));
+    document.documentElement.appendChild(host);
+    const anchor = badge.getBoundingClientRect();
+    const size = host.getBoundingClientRect();
+    let left = anchor.left;
+    if (left + size.width > window.innerWidth - EDGE) left = window.innerWidth - EDGE - size.width;
+    let top = anchor.bottom + GAP;
+    const above = anchor.top - GAP - size.height;
+    if (top + size.height > window.innerHeight - EDGE && above >= EDGE) top = above;
+    host.style.left = `${Math.max(EDGE, left)}px`;
+    host.style.top = `${Math.max(EDGE, top)}px`;
+    floating = host;
+    floatingOwner = wrap;
+  }
+  window.addEventListener("scroll", () => hideTooltip(), { capture: true, passive: true });
+  window.addEventListener("resize", () => hideTooltip(), { passive: true });
   function sendReport(analysis, anchor, button) {
     button.disabled = true;
     const reset = (label) => {
@@ -350,7 +382,6 @@
     badge.setAttribute("role", "note");
     badge.title = `${analysis.label}: ${analysis.reasons.join("; ")}`;
     wrap.appendChild(badge);
-    wrap.appendChild(buildTooltip(analysis));
     if (withReport) {
       const btn = el("button", "pg-report-btn", "Report");
       btn.type = "button";
@@ -361,8 +392,8 @@
       });
       wrap.appendChild(btn);
     }
-    const open = () => wrap.dataset.open = "1";
-    const close = () => delete wrap.dataset.open;
+    const open = () => showTooltip(wrap, badge, analysis);
+    const close = () => hideTooltip(wrap);
     wrap.addEventListener("mouseenter", open);
     wrap.addEventListener("mouseleave", close);
     wrap.addEventListener("focusin", open);
@@ -399,6 +430,7 @@
     };
   }
   function removeBadge(a) {
+    hideTooltip(badges.get(a));
     badges.get(a)?.remove();
     badges.delete(a);
   }
@@ -435,6 +467,7 @@
     }
   }
   function rescanEverything() {
+    hideTooltip();
     document.querySelectorAll(`.${WRAP_CLASS}`).forEach((w) => w.remove());
     document.querySelectorAll("a[href]").forEach((a) => {
       evaluatedHref.delete(a);

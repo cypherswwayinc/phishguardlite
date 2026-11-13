@@ -13,7 +13,7 @@ const EXPECT = { // id -> expected badge label (null = no badge)
   'redir-bad': 'High Risk', 'shortener': 'Caution', 'legit-ca': null, 'userinfo': 'High Risk',
   'legit-google': null, 'ip-host': 'Caution', 'brand-sub': 'High Risk', 'file-link': null,
   'hash-link': null, 'mail-link': null, 'safelink': 'Caution',
-  'late-direct': 'Caution', 'late-nested': 'Caution', 'late-href': 'Caution', 'compose-link': null,
+  'clipped': 'High Risk', 'late-direct': 'Caution', 'late-nested': 'Caution', 'late-href': 'Caution', 'compose-link': null,
 };
 
 async function badges(page) {
@@ -50,8 +50,20 @@ function compare(label, got) {
   check('badge is styled under strict CSP (caution = amber)', !!style && style.bg === 'rgb(255, 243, 205)' && style.display === 'inline-block', JSON.stringify(style));
 
   await page.hover('#redir-bad + .pg-wrap .pg-badge');
-  const tip = await page.$eval('#redir-bad + .pg-wrap .pg-tooltip', t => ({ shown: getComputedStyle(t).display === 'block', text: t.innerText }));
+  const tip = await page.$eval('.pg-float .pg-tooltip', t => ({ shown: getComputedStyle(t).display === 'block', text: t.innerText })).catch(() => ({ shown: false, text: '' }));
   check('tooltip shows reasons + real destination of a redirect link', tip.shown && /secure-paypa1\.tk/.test(tip.text) && /Imitates|Look-alike/.test(tip.text), JSON.stringify(tip));
+
+  // Short email in a clipping container (Gmail's message body): the whole tooltip must stay visible.
+  await page.hover('#clipped + .pg-wrap .pg-badge');
+  const clip = await page.evaluate(() => {
+    const host = document.querySelector('.pg-float'); if (!host) return null;
+    const t = host.getBoundingClientRect(), box = document.getElementById('clip-box').getBoundingClientRect(), b = document.querySelector('#clipped + .pg-wrap .pg-badge').getBoundingClientRect();
+    let clippedBy = null; for (let e = host.parentElement; e && e !== document.documentElement; e = e.parentElement) if (getComputedStyle(e).overflow !== 'visible') clippedBy = e.id || e.tagName;
+    return { belowBox: t.bottom > box.bottom + 20, underBadge: Math.abs(t.top - b.bottom) < 12 && Math.abs(t.left - b.left) < 4, inViewport: t.top >= 0 && t.left >= 0 && t.right <= innerWidth && t.bottom <= innerHeight, clippedBy, text: host.innerText, count: document.querySelectorAll('.pg-float').length };
+  });
+  check('tooltip is not clipped inside a short email (floats above the page)', !!clip && clip.belowBox && clip.underBadge && clip.inViewport && clip.clippedBy === null && /Goes to/.test(clip.text) && clip.count === 1, JSON.stringify(clip));
+  await page.mouse.move(5, 5); await page.waitForTimeout(150);
+  check('tooltip closes when the pointer leaves', await page.evaluate(() => document.querySelectorAll('.pg-float').length === 0));
 
   const composeSafe = await page.evaluate(() => document.getElementById('compose').innerHTML === window.__composeInitial);
   check('compose window (contenteditable) is left untouched', composeSafe);

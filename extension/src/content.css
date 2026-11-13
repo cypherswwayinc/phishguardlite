@@ -50,6 +50,18 @@
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
 }
 .pg-wrap[data-open="1"] .pg-tooltip { display: block; }
+
+/* Floating layer for the tooltip: attached to the page root so email containers cannot clip it. */
+.pg-wrap.pg-float {
+  display: block;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 2147483647;
+  margin: 0;
+  pointer-events: none;
+}
+.pg-wrap.pg-float .pg-tooltip { position: static; }
 .pg-wrap .pg-tooltip * { color: #fff; font-size: 12px; line-height: 1.4; }
 .pg-wrap .pg-tooltip strong { font-weight: 700; }
 .pg-wrap .pg-tooltip ul { display: block; margin: 6px 0; padding-left: 16px; list-style: disc; }
