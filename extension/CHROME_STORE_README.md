@@ -80,7 +80,7 @@ phishguard-lite-chrome-store.zip
 
 ### Email Services
 - ✅ Gmail (gmail.com)
-- ✅ Outlook (outlook.office.com)
+- ✅ Outlook on the web (outlook.office.com, outlook.office365.com, outlook.live.com, outlook.cloud.microsoft)
 - ✅ LinkedIn (linkedin.com)
 
 ### General Web Browsing

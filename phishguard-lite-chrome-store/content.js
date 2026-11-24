@@ -92,38 +92,225 @@
   ]);
   var BRANDS = {
     paypal: ["paypal-community.com", "paypalobjects.com"],
-    microsoft: ["microsoftonline.com"],
+    microsoft: ["microsoftonline.com", "microsoft365.com"],
+    microsoftonline: ["microsoft.com", "live.com", "office.com", "microsoftonline-p.com"],
     office365: [],
     onedrive: ["live.com", "1drv.ms", "sharepoint.com"],
-    google: ["google-analytics.com"],
+    google: ["google-analytics.com", "googlemail.com"],
     gmail: [],
     apple: ["icloud.com"],
     icloud: [],
     amazon: [],
     netflix: [],
-    facebook: [],
+    facebook: ["facebookmail.com", "fb.com", "fb.me"],
     instagram: [],
     linkedin: [],
-    dropbox: [],
+    dropbox: ["dropboxmail.com"],
     docusign: [],
     adobe: [],
     zoom: [],
+    whatsapp: [],
     fedex: [],
     dhl: [],
+    ups: [],
     usps: [],
+    purolator: [],
     chase: [],
     wellsfargo: [],
     bankofamerica: [],
+    intuit: ["quickbooks.com"],
+    quickbooks: ["intuit.com"],
+    irs: [],
     // Canadian brands (the primary market)
     canadapost: ["canadapost-postescanada.ca", "postescanada-canadapost.ca"],
-    rbc: [],
+    cra: [],
+    canadarevenue: [],
+    canadarevenueagency: [],
+    revenuecanada: [],
+    servicecanada: [],
+    rbc: ["rbcroyalbank.com", "royalbank.com", "rbcinsurance.com", "rbccm.com", "rbcgam.com"],
+    royalbank: ["rbc.com", "rbcroyalbank.com", "rbcinsurance.com"],
+    rbcroyalbank: ["rbc.com", "royalbank.com"],
+    td: ["tdbank.com", "tdcanadatrust.com", "tdameritrade.com", "tdsecurities.com"],
+    tdbank: ["td.com", "tdcanadatrust.com"],
+    tdcanadatrust: ["td.com", "tdbank.com"],
     scotiabank: [],
     bmo: [],
     cibc: [],
+    desjardins: [],
+    tangerine: [],
+    simplii: [],
+    wealthsimple: [],
+    questrade: [],
     telus: [],
-    rogers: [],
+    rogers: ["rogersbank.com"],
     interac: []
   };
+  var SHORT_BRANDS = /* @__PURE__ */ new Set(["td"]);
+  var BRAND_NAMES = {
+    paypal: "PayPal",
+    microsoft: "Microsoft",
+    microsoftonline: "Microsoft",
+    office365: "Microsoft 365",
+    onedrive: "OneDrive",
+    google: "Google",
+    gmail: "Gmail",
+    apple: "Apple",
+    icloud: "iCloud",
+    amazon: "Amazon",
+    netflix: "Netflix",
+    facebook: "Facebook",
+    instagram: "Instagram",
+    linkedin: "LinkedIn",
+    dropbox: "Dropbox",
+    docusign: "DocuSign",
+    adobe: "Adobe",
+    zoom: "Zoom",
+    whatsapp: "WhatsApp",
+    fedex: "FedEx",
+    dhl: "DHL",
+    ups: "UPS",
+    usps: "USPS",
+    purolator: "Purolator",
+    chase: "Chase",
+    wellsfargo: "Wells Fargo",
+    bankofamerica: "Bank of America",
+    intuit: "Intuit",
+    quickbooks: "QuickBooks",
+    irs: "IRS",
+    canadapost: "Canada Post",
+    cra: "CRA",
+    canadarevenue: "CRA",
+    canadarevenueagency: "CRA",
+    revenuecanada: "CRA",
+    servicecanada: "Service Canada",
+    rbc: "RBC",
+    royalbank: "RBC",
+    rbcroyalbank: "RBC",
+    td: "TD",
+    tdbank: "TD",
+    tdcanadatrust: "TD",
+    scotiabank: "Scotiabank",
+    bmo: "BMO",
+    cibc: "CIBC",
+    desjardins: "Desjardins",
+    tangerine: "Tangerine",
+    simplii: "Simplii",
+    wealthsimple: "Wealthsimple",
+    questrade: "Questrade",
+    telus: "Telus",
+    rogers: "Rogers",
+    interac: "Interac"
+  };
+  var brandName = (brand) => BRAND_NAMES[brand] ?? brand;
+  var LURE_WORDS = [
+    "secure",
+    "security",
+    "login",
+    "logon",
+    "signin",
+    "verify",
+    "verification",
+    "account",
+    "accounts",
+    "support",
+    "service",
+    "services",
+    "help",
+    "helpdesk",
+    "alert",
+    "alerts",
+    "update",
+    "updates",
+    "online",
+    "banking",
+    "bank",
+    "billing",
+    "payment",
+    "payments",
+    "refund",
+    "refunds",
+    "claim",
+    "delivery",
+    "tracking",
+    "portal",
+    "auth",
+    "confirm",
+    "confirmation",
+    "customer",
+    "notice",
+    "notification",
+    "invoice",
+    "wallet",
+    "recovery",
+    "unlock",
+    "mail",
+    "webmail",
+    "canada",
+    "ca",
+    "arc",
+    "gc"
+  ];
+  var OFFICIAL_GOV = /(^|\.)(canada\.ca|gc\.ca|gov|mil|gov\.[a-z]{2}\.ca|gov\.[a-z]{2})$/;
+  var FREE_HOSTING = /* @__PURE__ */ new Set([
+    "pages.dev",
+    "web.app",
+    "firebaseapp.com",
+    "netlify.app",
+    "vercel.app",
+    "github.io",
+    "glitch.me",
+    "herokuapp.com",
+    "onrender.com",
+    "workers.dev",
+    "weebly.com",
+    "wixsite.com",
+    "blogspot.com",
+    "000webhostapp.com",
+    "webflow.io",
+    "repl.co",
+    "replit.app",
+    "surge.sh",
+    "r2.dev",
+    "notion.site",
+    "carrd.co",
+    "godaddysites.com",
+    "azurewebsites.net",
+    "azurestaticapps.net",
+    "framer.website"
+  ]);
+  function userContentPlatform(url) {
+    const h = url.hostname.toLowerCase();
+    const p = url.pathname.toLowerCase();
+    if (h === "sites.google.com") return "Google Sites";
+    if (h === "storage.googleapis.com" || h === "storage.cloud.google.com") return "Google Cloud Storage";
+    if (h === "docs.google.com" && p.startsWith("/forms/") || h === "forms.gle") return "Google Forms";
+    if (h === "forms.office.com" || h === "forms.microsoft.com") return "Microsoft Forms";
+    return null;
+  }
+  var CREDENTIAL_WORDING = /\b(sign[\s_-]?in|log[\s_-]?in|logon|verify|verification|password|passcode|confirm( your)? account|account (suspended|locked|limited)|unlock|re-?activate|update (your )?(payment|billing|account|password))\b/i;
+  var EMBEDDED_OFFICIAL = [
+    "outlook.com",
+    "office.com",
+    "live.com",
+    "office365.com",
+    "microsoft.com",
+    "google.com",
+    "gmail.com",
+    "apple.com",
+    "icloud.com",
+    "paypal.com",
+    "amazon.com",
+    "amazon.ca",
+    "canada.ca",
+    "linkedin.com",
+    "facebook.com",
+    "dropbox.com",
+    "docusign.net",
+    "zoom.us",
+    "adobe.com"
+  ];
+  var TRUSTED_PROXIES = /* @__PURE__ */ new Set(["mcas.ms"]);
   var FILE_EXTENSIONS = /* @__PURE__ */ new Set([
     "pdf",
     "doc",
@@ -195,29 +382,65 @@
   function canon(s) {
     return s.replace(/rn/g, "m").replace(/vv/g, "w").replace(/[1i|!]/g, "l").replace(/0/g, "o").replace(/[5$]/g, "s");
   }
+  function isBrandWithLureWords(flat, brand) {
+    const words = [brand, ...LURE_WORDS];
+    const memo = /* @__PURE__ */ new Map();
+    const walk = (i, usedBrand) => {
+      if (i === flat.length) return usedBrand;
+      const key = `${i}|${usedBrand}`;
+      const seen = memo.get(key);
+      if (seen !== void 0) return seen;
+      let ok = false;
+      for (const w of words) {
+        if (flat.startsWith(w, i) && walk(i + w.length, usedBrand || w === brand)) {
+          ok = true;
+          break;
+        }
+      }
+      memo.set(key, ok);
+      return ok;
+    };
+    return walk(0, false);
+  }
   function brandFinding(host) {
-    if (isIpHost(host)) return null;
+    if (isIpHost(host) || OFFICIAL_GOV.test(host)) return null;
+    const topLevel = tldOf(host);
+    if (topLevel in BRANDS && !SHORT_BRANDS.has(topLevel)) return null;
     const reg = registrableDomain(host);
     const label = registrableLabel(host);
     const labelFlat = label.replace(/-/g, "");
     const tokens = host.split(/[.\-_]/);
     const hostLabels = host.split(".");
     const subdomainTokens = hostLabels.slice(0, hostLabels.length - reg.split(".").length).join(".").split(/[.\-_]/);
+    const regLabels = reg.split(".").length;
+    const siteFlat = FREE_HOSTING.has(reg) && hostLabels.length > regLabels ? hostLabels[hostLabels.length - regLabels - 1].replace(/-/g, "") : labelFlat;
     for (const [brand, legit] of Object.entries(BRANDS)) {
       if (label === brand || legit.includes(reg)) continue;
-      if (tokens.includes(brand)) {
+      const name = brandName(brand);
+      if (!SHORT_BRANDS.has(brand) && tokens.includes(brand)) {
         return {
-          reason: `Imitates ${brand} (${host} is not an official ${brand} domain)`,
+          reason: `Imitates ${name} (${host} is not an official ${name} domain)`,
           inSubdomain: subdomainTokens.includes(brand)
         };
+      }
+      if (!(siteFlat in BRANDS) && isBrandWithLureWords(siteFlat, brand)) {
+        return { reason: `Imitates ${name} (${host} is not an official ${name} domain)`, inSubdomain: false };
       }
       if (brand.length >= 5) {
         const canonBrand = canon(brand);
         if (tokens.some((t) => t !== brand && canon(t) === canonBrand)) {
-          return { reason: `Look-alike of ${brand}: ${reg}`, inSubdomain: false };
+          return { reason: `Look-alike of ${name}: ${reg}`, inSubdomain: false };
         }
         if (brand.length >= 6 && Math.abs(labelFlat.length - brand.length) <= 1 && editDistance(labelFlat, brand) === 1) {
-          return { reason: `Look-alike of ${brand}: ${reg}`, inSubdomain: false };
+          return { reason: `Look-alike of ${name}: ${reg}`, inSubdomain: false };
+        }
+      }
+    }
+    if (!TRUSTED_PROXIES.has(reg)) {
+      const front = `.${host.slice(0, host.length - reg.length)}`;
+      for (const official of EMBEDDED_OFFICIAL) {
+        if (reg !== official && front.includes(`.${official}.`)) {
+          return { reason: `Contains "${official}" but the real site is ${reg}`, inSubdomain: true };
         }
       }
     }
@@ -275,6 +498,20 @@
     }
     const brand = brandFinding(host);
     if (brand) add(brand.inSubdomain ? 50 : 35, brand.reason);
+    const reg = registrableDomain(host);
+    const platform = userContentPlatform(url) ?? (FREE_HOSTING.has(reg) ? reg : null);
+    if (platform) {
+      add(10, `Page on ${platform}, where anyone can publish a page`);
+      let path = url.pathname;
+      try {
+        path = decodeURIComponent(path);
+      } catch {
+      }
+      const front = host.slice(0, host.length - reg.length);
+      if (CREDENTIAL_WORDING.test(`${linkText ?? ""} ${path} ${front}`)) {
+        add(15, "Sign-in wording on a page anyone can publish");
+      }
+    }
     const mismatch = textMismatchWeight(host, linkText);
     if (mismatch) add(mismatch, "Link text domain mismatch");
     return { score, reasons, label: labelFor(score) };
@@ -429,6 +666,20 @@
       enableReporting: stored.enableReporting !== false
     };
   }
+  var statsTimer;
+  function reportStats() {
+    if (statsTimer !== void 0) return;
+    statsTimer = window.setTimeout(() => {
+      statsTimer = void 0;
+      const high = document.querySelectorAll('.pg-badge[data-level="high"]').length;
+      const caution = document.querySelectorAll('.pg-badge[data-level="caution"]').length;
+      try {
+        void chrome.runtime.sendMessage({ type: "pg_page_stats", active: settings.enabled, high, caution }).catch(() => {
+        });
+      } catch {
+      }
+    }, 300);
+  }
   function removeBadge(a) {
     hideTooltip(badges.get(a));
     badges.get(a)?.remove();
@@ -463,6 +714,7 @@
         const nodes = [...pending];
         pending.clear();
         for (const n of nodes) if (n.isConnected) scan(n);
+        reportStats();
       }, 150);
     }
   }
@@ -474,10 +726,12 @@
       badges.delete(a);
     });
     scan(document);
+    reportStats();
   }
   async function start() {
     await loadSettings();
     scan(document);
+    reportStats();
     new MutationObserver((records) => {
       for (const rec of records) {
         if (rec.type === "attributes") {

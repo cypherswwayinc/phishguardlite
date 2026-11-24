@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Welcome to PhishGuard Lite</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="content.css" />
+  <style>
+    :root {
+      --ink: #1b1f24; --muted: #5b6470; --line: #dfe3e8; --page: #f4f5f7; --card: #ffffff;
+      --link: #1a56c4; --ok: #188038; --hot: #c5221f; --warm: #b06000;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root { --ink: #e8eaed; --muted: #a0a7b1; --line: #343a42; --page: #16191d; --card: #1f2328; --link: #8ab4f8; --ok: #81c995; --hot: #f28b82; --warm: #fdd663; }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--page); color: var(--ink); font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+    main { max-width: 680px; margin: 0 auto; padding: 40px 20px 56px; }
+    header { display: flex; gap: 16px; align-items: center; margin-bottom: 28px; }
+    header img { width: 56px; height: 56px; border-radius: 12px; flex: none; }
+    h1 { margin: 0 0 2px; font-size: 26px; line-height: 1.2; }
+    header p { margin: 0; color: var(--muted); }
+    section { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 20px 22px; margin-bottom: 16px; }
+    h2 { margin: 0 0 12px; font-size: 17px; }
+    p { margin: 0 0 10px; }
+    p:last-child { margin-bottom: 0; }
+    .muted { color: var(--muted); }
+    .demo { list-style: none; margin: 0 0 12px; padding: 0; }
+    .demo li { padding: 10px 0; border-top: 1px solid var(--line); }
+    .demo li:first-child { border-top: 0; padding-top: 0; }
+    .demo .line { margin: 0; }
+    .demo .note { display: block; margin-top: 2px; color: var(--muted); font-size: 13px; }
+    .demo a { color: var(--link); }
+    .places { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; padding: 0; list-style: none; }
+    .places li { padding: 4px 12px; border: 1px solid var(--line); border-radius: 999px; font-weight: 600; font-size: 14px; }
+    .places a { color: inherit; text-decoration: none; }
+    .places a:hover { text-decoration: underline; }
+    .status { display: flex; gap: 10px; align-items: center; margin: 4px 0 12px; }
+    .status .pill { display: inline-block; min-width: 26px; padding: 2px 8px; border-radius: 6px; color: #fff; font-weight: 700; font-size: 13px; text-align: center; }
+    .pill.ok { background: #188038; } .pill.hot { background: #c5221f; } .pill.warm { background: #b06000; }
+    .actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-top: 4px; }
+    button { font: inherit; padding: 8px 16px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; }
+    button:hover { border-color: var(--muted); }
+    a { color: var(--link); }
+    :focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <img src="icons/icon128.png" alt="" />
+      <div>
+        <h1>PhishGuard Lite is on</h1>
+        <p>It checks the links in your email while you read, and puts a badge next to the risky ones.</p>
+      </div>
+    </header>
+
+    <section aria-labelledby="demo-title">
+      <h2 id="demo-title">What a warning looks like</h2>
+      <ul class="demo">
+        <li>
+          <p class="line">Your parcel is waiting. <a data-demo href="https://secure-canadapost.test/track">Track your parcel</a></p>
+        </li>
+        <li>
+          <p class="line">Action needed on your account. <a data-demo href="https://paypal.com.account-verify.test/signin">Confirm your account</a></p>
+        </li>
+        <li>
+          <p class="line">Your invoice is ready. <a data-demo href="https://bit.ly/pg-welcome-demo">View invoice</a></p>
+        </li>
+        <li>
+          <p class="line">Your statement is ready. <a data-demo href="https://www.paypal.com/">Open PayPal</a></p>
+          <span class="note" data-safe-note hidden>No badge here: nothing suspicious was found in this link.</span>
+        </li>
+      </ul>
+      <p class="muted">These are examples and the links don't open. Point at a badge, or tab to it, to see why the link was flagged and where it really goes.</p>
+    </section>
+
+    <section aria-labelledby="where-title">
+      <h2 id="where-title">Where it works</h2>
+      <ul class="places">
+        <li><a href="https://mail.google.com/" target="_blank" rel="noopener">Gmail</a></li>
+        <li><a href="https://outlook.office.com/mail/" target="_blank" rel="noopener">Outlook on the web</a></li>
+        <li><a href="https://www.linkedin.com/messaging/" target="_blank" rel="noopener">LinkedIn</a></li>
+      </ul>
+      <p class="muted">Outlook on the web includes outlook.office.com, outlook.live.com and outlook.cloud.microsoft. It doesn't run in the Outlook desktop or phone apps.</p>
+    </section>
+
+    <section aria-labelledby="icon-title">
+      <h2 id="icon-title">Check that it's working</h2>
+      <p>While you're in Gmail, Outlook or LinkedIn, the PhishGuard icon in your toolbar shows what it found on that page:</p>
+      <div class="status"><span class="pill ok">✓</span><span>No risky links on the page</span></div>
+      <div class="status"><span class="pill warm">2</span><span>Two links were flagged (red when any is High Risk)</span></div>
+      <p class="muted">Can't see the icon? Click the puzzle-piece icon in Chrome's toolbar and pin PhishGuard Lite.</p>
+    </section>
+
+    <section aria-labelledby="privacy-title">
+      <h2 id="privacy-title">Your privacy</h2>
+      <p>Links are checked inside your browser. Nothing is sent anywhere unless you click Report on a flagged link, and then only the link, its text, why it was flagged and the site name.</p>
+      <div class="actions">
+        <button id="open-settings" type="button">Open settings</button>
+        <a href="https://cyphersway.com/phishguard/" target="_blank" rel="noopener">Protecting a team? See PhishGuard Lite for business</a>
+      </div>
+    </section>
+  </main>
+  <script src="welcome.js"></script>
+</body>
+</html>

@@ -16,6 +16,7 @@ await build({
     content: "src/content.ts",
     background: "src/background.ts",
     options: "src/options/index.ts",
+    welcome: "src/welcome/index.ts",
   },
   bundle: true,
   format: "iife",
@@ -28,10 +29,11 @@ await build({
 cpSync("manifest.json", "dist/manifest.json");
 cpSync("src/content.css", "dist/content.css");
 cpSync("src/options/index.html", "dist/index.html");
+cpSync("src/welcome/index.html", "dist/welcome.html");
 cpSync("public/icons", "dist/icons", { recursive: true });
 
 // Guard against regressing to a content script that needs other files to load.
-for (const f of ["content.js", "background.js", "options.js"]) {
+for (const f of ["content.js", "background.js", "options.js", "welcome.js"]) {
   const src = readFileSync(`dist/${f}`, "utf8");
   if (/^\s*import[\s{*]/m.test(src) || /^\s*export[\s{*]/m.test(src)) {
     console.error(`dist/${f} contains ES module import/export; it must be a single classic script.`);

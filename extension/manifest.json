@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "PhishGuard Lite",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "Inline phishing risk labels and one-click reporting. Local heuristics; report only on user action.",
   "action": {
     "default_title": "PhishGuard Lite settings"
@@ -28,6 +28,9 @@
       "matches": [
         "https://mail.google.com/*",
         "https://outlook.office.com/*",
+        "https://outlook.office365.com/*",
+        "https://outlook.live.com/*",
+        "https://outlook.cloud.microsoft/*",
         "https://www.linkedin.com/*"
       ],
       "js": [

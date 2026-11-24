@@ -11,7 +11,7 @@
     AWS_REGION: "us-east-1",
     // Extension Settings
     EXTENSION_NAME: "PhishGuard Lite",
-    VERSION: "0.3.1",
+    VERSION: "0.4.0",
     // Feature Flags
     ENABLE_CLOUD_SCORING: false,
     // scoring is local-only; reports are sent only on user click
@@ -90,11 +90,51 @@
       clearTimeout(timer);
     }
   }
+  function count(v) {
+    const n = Number(v);
+    return Number.isFinite(n) ? Math.min(999, Math.max(0, Math.round(n))) : 0;
+  }
+  async function showPageStatus(tabId, msg) {
+    const high = count(msg.high);
+    const total = high + count(msg.caution);
+    let text;
+    let color;
+    let title;
+    if (msg.active === false) {
+      text = "off";
+      color = "#5f6368";
+      title = "PhishGuard Lite is turned off. Click to open settings.";
+    } else if (total === 0) {
+      text = "\u2713";
+      color = "#188038";
+      title = "PhishGuard Lite: no risky links found on this page";
+    } else {
+      text = String(total);
+      color = high > 0 ? "#c5221f" : "#b06000";
+      title = `PhishGuard Lite: ${total} risky link${total === 1 ? "" : "s"} on this page`;
+    }
+    try {
+      await chrome.action.setBadgeText({ tabId, text });
+      await chrome.action.setBadgeBackgroundColor({ tabId, color });
+      await chrome.action.setBadgeTextColor({ tabId, color: "#ffffff" });
+      await chrome.action.setTitle({ tabId, title });
+    } catch {
+    }
+  }
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (sender.id !== chrome.runtime.id) return;
+    if (message?.type === "pg_page_stats") {
+      if (sender.tab?.id !== void 0) void showPageStatus(sender.tab.id, message);
+      return;
+    }
     if (message?.type !== "pg_report_suspicious") return;
     postReport(message).then(sendResponse, () => sendResponse({ ok: false, error: "Unexpected error" }));
     return true;
+  });
+  chrome.runtime.onInstalled.addListener((details) => {
+    if (details.reason === "install") {
+      void chrome.tabs.create({ url: chrome.runtime.getURL("welcome.html") });
+    }
   });
   chrome.action.onClicked.addListener(() => {
     void chrome.runtime.openOptionsPage();

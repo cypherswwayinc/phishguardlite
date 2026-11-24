@@ -91,11 +91,64 @@ async function postReport(msg: ReportMessage): Promise<Result> {
   }
 }
 
-chrome.runtime.onMessage.addListener((message: ReportMessage, sender, sendResponse) => {
+type StatsMessage = { type: "pg_page_stats"; active?: unknown; high?: unknown; caution?: unknown };
+
+function count(v: unknown): number {
+  const n = Number(v);
+  return Number.isFinite(n) ? Math.min(999, Math.max(0, Math.round(n))) : 0;
+}
+
+/**
+ * Toolbar icon status for one tab, so people can see the extension is working even when
+ * nothing is flagged: a green tick when the page is clear, a number when links were flagged.
+ * Counts stay inside the browser (content script -> this worker); nothing is sent anywhere.
+ */
+async function showPageStatus(tabId: number, msg: StatsMessage): Promise<void> {
+  const high = count(msg.high);
+  const total = high + count(msg.caution);
+  let text: string;
+  let color: string;
+  let title: string;
+  if (msg.active === false) {
+    text = "off";
+    color = "#5f6368";
+    title = "PhishGuard Lite is turned off. Click to open settings.";
+  } else if (total === 0) {
+    text = "\u2713";
+    color = "#188038";
+    title = "PhishGuard Lite: no risky links found on this page";
+  } else {
+    text = String(total);
+    color = high > 0 ? "#c5221f" : "#b06000";
+    title = `PhishGuard Lite: ${total} risky link${total === 1 ? "" : "s"} on this page`;
+  }
+  try {
+    await chrome.action.setBadgeText({ tabId, text });
+    await chrome.action.setBadgeBackgroundColor({ tabId, color });
+    await chrome.action.setBadgeTextColor({ tabId, color: "#ffffff" });
+    await chrome.action.setTitle({ tabId, title });
+  } catch {
+    /* the tab was closed before we could update it */
+  }
+}
+
+chrome.runtime.onMessage.addListener((message: ReportMessage | StatsMessage, sender, sendResponse) => {
   if (sender.id !== chrome.runtime.id) return; // ignore anything not from this extension
+  if (message?.type === "pg_page_stats") {
+    if (sender.tab?.id !== undefined) void showPageStatus(sender.tab.id, message);
+    return;
+  }
   if (message?.type !== "pg_report_suspicious") return;
   postReport(message).then(sendResponse, () => sendResponse({ ok: false, error: "Unexpected error" }));
   return true; // keep the channel open for the async response
+});
+
+// First install: open a short welcome page that shows what a warning looks like.
+// (Updates do not reopen it.)
+chrome.runtime.onInstalled.addListener((details) => {
+  if (details.reason === "install") {
+    void chrome.tabs.create({ url: chrome.runtime.getURL("welcome.html") });
+  }
 });
 
 // There is no popup: clicking the toolbar icon opens the settings page.

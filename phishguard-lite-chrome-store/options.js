@@ -11,7 +11,7 @@
     AWS_REGION: "us-east-1",
     // Extension Settings
     EXTENSION_NAME: "PhishGuard Lite",
-    VERSION: "0.3.1",
+    VERSION: "0.4.0",
     // Feature Flags
     ENABLE_CLOUD_SCORING: false,
     // scoring is local-only; reports are sent only on user click

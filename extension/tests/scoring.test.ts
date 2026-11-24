@@ -25,6 +25,18 @@ const SAFE = [
   "https://www.canadapost-postescanada.ca/track", "https://www.canada.ca/en.html", "https://www2.gov.bc.ca/gov/content",
   "https://github.com/cypherswwayinc/phishguardlite", "https://stackoverflow.com/questions/1",
   "https://www.applebees.com", "https://example.org", "https://www.cyphersway.com/",
+  // Outlook on the web (all addresses it uses) and Microsoft's own domains
+  "https://outlook.cloud.microsoft/mail/", "https://login.cloud.microsoft/", "https://outlook.live.com/mail/",
+  "https://outlook.office365.com/owa/", "https://login.microsoftonline-p.com/", "https://microsoftonline.us/",
+  "https://outlook.office.com.mcas.ms/mail",
+  // Real companies whose names contain a brand or a lure word
+  "https://www.td.com/ca/en/personal-banking", "https://www.tdbank.com/", "https://www.royalbank.com/",
+  "https://apps.cra-arc.gc.ca/ebci/", "https://www.irs.gov/refunds", "https://quickbooks.intuit.com/",
+  "https://www.facebookmail.com/", "https://www.rogersbank.com/", "https://www.zoominfo.com/",
+  "https://www.chasecenter.com/", "https://www.ups.com/track",
+  // Pages anyone can publish are only a nudge on their own
+  "https://forms.office.com/r/abc123", "https://docs.google.com/forms/d/e/abc/viewform",
+  "https://sites.google.com/view/our-team", "https://myapp.vercel.app/", "https://cyphersway.github.io/docs",
 ];
 for (const u of SAFE) test(`safe: ${u}`, () => assert.equal(label(u), "Safe", JSON.stringify(scoreUrl(u))));
 
@@ -46,6 +58,16 @@ const caution: [string, string?][] = [
   ["https://bit.ly/abc123"], ["https://tinyurl.com/test"], ["https://login.gq"], ["https://account.ga"],
   ["http://192.168.4.5/login"], ["https://example.com/login@secure-bank"],
   ["https://paypal-secure-login.com/"], ["https://arnazon.com/login"], ["https://g00gle.com/"], ["https://gogle.com/"],
+  // A brand glued to words like secure / banking / refund
+  ["https://paypalsecure.com/login"], ["https://rbcbanking.com/"], ["https://amazonsecure.net/"],
+  ["https://microsoftonline-verify.com/"], ["https://tdcanadatrust-secure.com/"], ["https://td-secure-login.com/"],
+  ["https://royalbank-secure.com/"], ["https://rbc-royalbank-signin.com/"], ["https://cra-arc-gc-refund.com/"],
+  ["https://canada-revenue-refund.com/"], ["https://purolator-delivery.info/pay"], ["https://quickbooks-invoice.com/"],
+  // Pages anyone can publish, with sign-in wording
+  ["https://secure-docs.pages.dev/login"], ["https://sites.google.com/view/secure-docs-login"],
+  ["https://storage.googleapis.com/bucket/login.html"],
+  ["https://forms.office.com/r/abc123", "Verify your mailbox password"],
+  ["https://docs.google.com/forms/d/e/abc/viewform", "Confirm account"],
 ];
 for (const [u, t] of caution) test(`flagged (>= Caution): ${u}`, () => {
   assert.notEqual(label(u, t), "Safe", JSON.stringify(scoreUrl(u, t)));
@@ -56,6 +78,9 @@ const high: [string, string?][] = [
   ["https://paypal.com.account-verify.net/signin"],
   ["https://secure-paypa1.tk/login", "Verify your account at paypal.com"],
   ["https://rbc-secure-login.tk/"],
+  // A real domain placed in front of the attacker's own, or a brand on free hosting
+  ["https://login.microsoftonline.com.evil.net/"], ["https://outlook.com.account-check.net/"],
+  ["https://login-microsoftonline.pages.dev/"], ["https://office365-login.web.app/"],
 ];
 for (const [u, t] of high) test(`High Risk: ${u}`, () => {
   assert.equal(label(u, t), "High Risk", JSON.stringify(scoreUrl(u, t)));
@@ -107,4 +132,17 @@ test("non-web and malformed links return null", () => {
 test("relative links resolve against the page", () => {
   const r = resolveLink("/mail/u/0/", "https://mail.google.com/mail/u/0/#inbox");
   assert.equal(r!.url.hostname, "mail.google.com");
+});
+
+test("pages anyone can publish stay Safe without sign-in wording", () => {
+  assert.equal(label("https://forms.office.com/r/abc123", "Quick survey"), "Safe");
+  assert.equal(label("https://sites.google.com/view/our-team", "Our team page"), "Safe");
+});
+test("brand-owned top-level domains (.microsoft) are never imitations", () => {
+  const a = analyzeLink("https://outlook.cloud.microsoft/mail/");
+  assert.equal(a!.score, 0);
+});
+test("friendly brand names appear in the reasons", () => {
+  assert.match(scoreUrl("https://cra-arc-gc-refund.com/").reasons[0], /^Imitates CRA /);
+  assert.match(scoreUrl("https://paypa1.com/").reasons[0], /^Look-alike of PayPal/);
 });

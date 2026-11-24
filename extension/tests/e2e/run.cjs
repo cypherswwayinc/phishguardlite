@@ -22,6 +22,13 @@ async function badges(page) {
     return [a.id, ok ? w.querySelector('.pg-badge').textContent : null];
   })));
 }
+// Toolbar icon text of every open tab, read from inside the extension's service worker.
+async function toolbarTexts(sw) {
+  return sw.evaluate(async () => {
+    const tabs = await chrome.tabs.query({});
+    return Promise.all(tabs.map(async (t) => await chrome.action.getBadgeText({ tabId: t.id })));
+  });
+}
 function compare(label, got) {
   const bad = Object.entries(EXPECT).filter(([id, exp]) => (got[id] ?? null) !== exp).map(([id, exp]) => `${id}: expected ${exp}, got ${got[id] ?? null}`);
   check(label, bad.length === 0, bad.join('; '));
@@ -44,6 +51,7 @@ function compare(label, got) {
   await page.goto('https://mail.google.com/mail/u/0/#inbox');
   await page.waitForTimeout(4500);
 
+  check('welcome page opens by itself on first install', ctx.pages().some(p => p.url().endsWith('/welcome.html')), ctx.pages().map(p => p.url()).join(' | '));
   compare('badges match expectations (static + dynamically inserted links)', await badges(page));
 
   const style = await page.$eval('#shortener + .pg-wrap .pg-badge', b => { const s = getComputedStyle(b); return { bg: s.backgroundColor, display: s.display }; }).catch(() => null);
@@ -86,9 +94,54 @@ function compare(label, got) {
     check('raising minimum score to 60 hides Caution badges live, keeps High Risk', hi['shortener'] === null && hi['redir-bad'] === 'High Risk', JSON.stringify(hi));
     await opts.fill('#minScore', '20'); await opts.uncheck('#enabled'); await opts.click('#save'); await page.waitForTimeout(700);
     check('disabling detection removes all badges live', Object.values(await badges(page)).every(v => v === null));
+    check('toolbar icon says "off" while detection is disabled', (await toolbarTexts(sw)).includes('off'), JSON.stringify(await toolbarTexts(sw)));
     await opts.check('#enabled'); await opts.click('#save'); await page.waitForTimeout(700);
     compare('re-enabling restores badges', await badges(page));
     await opts.close();
+
+    // --- Toolbar icon: number of flagged links, green tick when the page is clear ---
+    const flagged = Object.values(await badges(page)).filter(v => v !== null).length;
+    const texts = await toolbarTexts(sw);
+    check('toolbar icon shows how many links were flagged on the Gmail page', texts.includes(String(flagged)), `expected ${flagged}, tabs show ${JSON.stringify(texts)}`);
+    const clear = await ctx.newPage();
+    await clear.route('https://www.linkedin.com/**', r => r.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>x</title><a href="https://www.cyphersway.com/">Our site</a>' }));
+    await clear.goto('https://www.linkedin.com/feed/');
+    await clear.waitForTimeout(1500);
+    check('toolbar icon shows a green tick when nothing is flagged', (await toolbarTexts(sw)).includes('\u2713'), JSON.stringify(await toolbarTexts(sw)));
+    await clear.close();
+
+    // --- Every Outlook on the web address runs the extension; an unrelated site does not ---
+    for (const origin of ['https://outlook.office.com', 'https://outlook.office365.com', 'https://outlook.live.com', 'https://outlook.cloud.microsoft']) {
+      const p = await ctx.newPage();
+      await p.route(`${origin}/**`, r => r.fulfill({ status: 200, contentType: 'text/html', body: fixture }));
+      await p.goto(`${origin}/mail/`);
+      await p.waitForTimeout(1800);
+      const got = await badges(p);
+      check(`runs on ${origin}`, got['redir-bad'] === 'High Risk' && got['shortener'] === 'Caution', JSON.stringify(got));
+      await p.close();
+    }
+    const other = await ctx.newPage();
+    await other.route('https://example.org/**', r => r.fulfill({ status: 200, contentType: 'text/html', body: fixture }));
+    await other.goto('https://example.org/');
+    await other.waitForTimeout(1500);
+    check('does not run on unrelated sites', Object.values(await badges(other)).every(v => v === null));
+    await other.close();
+
+    // --- Welcome page: real badges on example links, examples never navigate ---
+    const wel = await ctx.newPage();
+    await wel.goto(`chrome-extension://${id}/welcome.html`);
+    await wel.waitForTimeout(600);
+    const wb = await wel.$$eval('a[data-demo]', as => as.map(a => { const w = a.nextElementSibling; return w && w.classList.contains('pg-wrap') ? w.querySelector('.pg-badge').textContent : null; }));
+    check('welcome page: 2 Caution + 1 High Risk badge, none on the safe link', JSON.stringify(wb) === JSON.stringify(['Caution', 'High Risk', 'Caution', null]), JSON.stringify(wb));
+    check('welcome page: safe-link note is shown', await wel.$eval('[data-safe-note]', n => !n.hidden));
+    await wel.hover('a[data-demo] + .pg-wrap .pg-badge');
+    const wtip = await wel.$eval('.pg-float .pg-tooltip', t => t.innerText).catch(() => '');
+    check('welcome page: tooltip explains the flag', /Canada Post/.test(wtip) && /Goes to/.test(wtip), wtip);
+    await wel.mouse.move(5, 5);
+    await wel.click('a[data-demo]');
+    check('welcome page: example links do not open', wel.url().endsWith('/welcome.html'), wel.url());
+    if (process.env.PG_SHOT) await wel.screenshot({ path: process.env.PG_SHOT, fullPage: true });
+    await wel.close();
   }
   await ctx.close();
   const failed = results.filter(r => !r.ok).length;

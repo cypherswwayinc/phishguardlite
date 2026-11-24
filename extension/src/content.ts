@@ -40,6 +40,23 @@ async function loadSettings(): Promise<void> {
   };
 }
 
+// Tell the toolbar icon how many risky links are on the page (green tick when there are none).
+// Counted from the badges actually on screen, so closing an email updates the number too.
+let statsTimer: number | undefined;
+function reportStats(): void {
+  if (statsTimer !== undefined) return;
+  statsTimer = window.setTimeout(() => {
+    statsTimer = undefined;
+    const high = document.querySelectorAll('.pg-badge[data-level="high"]').length;
+    const caution = document.querySelectorAll('.pg-badge[data-level="caution"]').length;
+    try {
+      void chrome.runtime.sendMessage({ type: "pg_page_stats", active: settings.enabled, high, caution }).catch(() => {});
+    } catch {
+      /* extension was updated or reloaded while this tab was open */
+    }
+  }, 300);
+}
+
 function removeBadge(a: HTMLAnchorElement): void {
   hideTooltip(badges.get(a));
   badges.get(a)?.remove();
@@ -83,6 +100,7 @@ function queue(node: Element): void {
       const nodes = [...pending];
       pending.clear();
       for (const n of nodes) if (n.isConnected) scan(n);
+      reportStats();
     }, 150);
   }
 }
@@ -95,11 +113,13 @@ function rescanEverything(): void {
     badges.delete(a);
   });
   scan(document);
+  reportStats();
 }
 
 async function start(): Promise<void> {
   await loadSettings();
   scan(document);
+  reportStats();
 
   new MutationObserver((records) => {
     for (const rec of records) {
