@@ -1,164 +1,42 @@
-# Chrome Web Store Permissions Fix - PhishGuard Lite
+# Chrome Web Store permissions: history and current state
 
-## 🚨 **Issue Identified**
+## Current permissions (version 0.4.0)
 
-Chrome Web Store flagged your extension with:
-> **"Publishing will be delayed - Because of the following issue, your extension may require an in-depth review: Broad Host Permissions"**
-
-## 🔧 **Root Cause**
-
-Your extension had `"https://*/*"` in `host_permissions`, which gives access to **ALL HTTPS sites**. This is considered a security risk and delays review.
-
-## ✅ **Solution Implemented**
-
-### **Before (Insecure):**
 ```json
 {
   "permissions": ["storage"],
-  "host_permissions": [
-    "https://mail.google.com/*",
-    "https://outlook.office.com/*", 
-    "https://www.linkedin.com/*",
-    "https://*/*"  // ❌ ACCESS TO ALL SITES
-  ]
+  "host_permissions": ["https://phishguard.cyphersway.com/*"],
+  "content_scripts": [{
+    "matches": [
+      "https://mail.google.com/*",
+      "https://outlook.office.com/*",
+      "https://outlook.office365.com/*",
+      "https://outlook.live.com/*",
+      "https://outlook.cloud.microsoft/*",
+      "https://www.linkedin.com/*"
+    ]
+  }]
 }
 ```
 
-### **After (Secure):**
-```json
-{
-  "permissions": ["storage", "activeTab", "scripting"],
-  "host_permissions": [
-    "https://phishguard.cyphersway.com/*"  // ✅ ONLY YOUR API
-  ]
-}
-```
+The extension does not request `activeTab`, `scripting` or access to all websites. Content scripts run only on the six addresses above. `extension/manifest.json` is the source of truth; if this file and the manifest disagree, the manifest is right.
 
-## 🛡️ **Security Improvements**
+## Why this matters for review
 
-### **1. Replaced Broad Permissions with `activeTab`**
-- **Before**: Extension could access any website automatically
-- **After**: Extension only accesses current tab when user explicitly clicks the icon
-- **Benefit**: Much more secure, follows Chrome's security best practices
+Chrome Web Store flagged an early build (0.2.4) for "Broad Host Permissions" because `host_permissions` contained `https://*/*`. That entry was removed, and review has not been delayed by host permissions since.
 
-### **2. Added `scripting` Permission**
-- **Purpose**: Dynamically inject content scripts only when needed
-- **Benefit**: Content scripts don't run on every page automatically
+Version 0.4.0 added three Outlook on the web addresses (`outlook.office365.com`, `outlook.live.com`, `outlook.cloud.microsoft`) as content script matches. Existing users see a permission prompt when they update, and the extension may show as disabled until they click Enable.
 
-### **3. Limited Host Access**
-- **Before**: `"https://*/*"` (all HTTPS sites)
-- **After**: Only specific sites + your API endpoint
-- **Benefit**: Minimal permissions, better security posture
+## Changes by version
 
-## 🔄 **How It Works Now**
+| Version | Permission change |
+| --- | --- |
+| 0.2.5 | Removed `https://*/*` from host permissions (this fixed the review warning) |
+| 0.3.0 | Removed `activeTab` and `scripting`, which the extension did not use |
+| 0.4.0 | Added three Outlook on the web addresses as content script matches |
 
-### **Content Script Execution:**
-1. **Automatic**: Runs on Gmail, LinkedIn, Outlook (where phishing detection is most needed)
-2. **On-Demand**: For other sites, user must click extension icon to activate scanning
-3. **Secure**: No automatic access to random websites
+## When a permission changes
 
-### **User Experience:**
-- **Gmail/LinkedIn/Outlook**: Works exactly as before (automatic detection)
-- **Other Sites**: User clicks extension icon → scanning activates → phishing detection works
-- **Settings**: All options remain the same, no user configuration changes needed
-
-## 📱 **Updated Files**
-
-### **1. `extension/manifest.json`**
-- ✅ Added `"activeTab"` permission
-- ✅ Added `"scripting"` permission  
-- ✅ Removed `"https://*/*"` from host_permissions
-- ✅ Version updated to `0.2.5`
-
-### **2. `extension/src/background.ts`**
-- ✅ Added `chrome.action.onClicked` listener
-- ✅ Dynamic content script injection
-- ✅ Site-specific activation logic
-
-### **3. `extension/src/content.ts`**
-- ✅ Site validation before execution
-- ✅ Only runs on supported sites automatically
-- ✅ Enhanced security checks
-
-## 🎯 **Benefits for Chrome Web Store Submission**
-
-### **1. Faster Review Process**
-- ✅ No more "Broad Host Permissions" warning
-- ✅ Follows Chrome security best practices
-- ✅ Reduced review time
-
-### **2. Enhanced Security**
-- ✅ Minimal permissions requested
-- ✅ User-controlled activation
-- ✅ No automatic access to unknown sites
-
-### **3. Better User Trust**
-- ✅ Users see exactly what permissions are needed
-- ✅ Extension only activates when explicitly requested
-- ✅ Professional security posture
-
-## 📦 **New Extension Package**
-
-### **File Created:**
-- `phishguard-lite-v0.2.5-secure.zip`
-
-### **What's Included:**
-- ✅ Updated manifest with secure permissions
-- ✅ Enhanced background script
-- ✅ Improved content script
-- ✅ All icons and assets
-- ✅ Ready for Chrome Web Store submission
-
-## 🚀 **Next Steps**
-
-### **1. Submit New Package**
-- Use `phishguard-lite-v0.2.5-secure.zip` for Chrome Web Store
-- This version should pass the permissions review quickly
-
-### **2. Update Version**
-- Chrome Web Store will show version `0.2.5`
-- Previous version `0.2.4` can be deprecated
-
-### **3. Monitor Review**
-- Review process should be much faster now
-- No more permissions-related delays
-
-## 🔍 **Testing the Updated Extension**
-
-### **Test Scenarios:**
-1. **Gmail/LinkedIn/Outlook**: Should work automatically (no changes)
-2. **Other Sites**: Click extension icon → scanning activates
-3. **Settings**: All options work exactly as before
-4. **Security**: No automatic access to random sites
-
-### **Expected Behavior:**
-- ✅ Phishing detection works on supported sites automatically
-- ✅ Extension icon click activates scanning on other sites
-- ✅ All settings and features remain functional
-- ✅ Enhanced security without user experience impact
-
-## 📋 **Chrome Web Store Submission**
-
-### **Use This Package:**
-- **File**: `phishguard-lite-v0.2.5-secure.zip`
-- **Version**: `0.2.5`
-- **Permissions**: Secure, minimal, Chrome-compliant
-
-### **Expected Result:**
-- ✅ No more "Broad Host Permissions" warning
-- ✅ Faster review process
-- ✅ Professional security posture
-- ✅ Better user trust and adoption
-
----
-
-## 🎉 **Summary**
-
-**The extension is now:**
-- ✅ **More Secure**: Minimal permissions, user-controlled activation
-- ✅ **Chrome Compliant**: Follows all security best practices  
-- ✅ **Review Ready**: No more permissions warnings
-- ✅ **User Friendly**: Same functionality, better security
-
-**Your Chrome Web Store submission should now proceed much faster without the permissions review delay!**
-
+1. Update `extension/manifest.json` and this file together.
+2. Update the justification text in `CHROME_STORE_PERMISSION_JUSTIFICATIONS.md`.
+3. Add a line to `CHANGELOG.md` that says plainly what the new permission is for, because existing users will be prompted.

@@ -53,7 +53,7 @@ PhishGuard Lite is your intelligent browser companion that helps you identify an
 • **No Data Collection**: We don't track your browsing history
 • **Local Processing**: All analysis happens on your device
 • **No Personal Information**: We never see your personal data
-• **Open Source**: Transparent code for security verification
+• **Plain-Language Reasons**: Every warning explains why the link was flagged
 • **Regular Updates**: Continuous improvements and threat detection updates
 
 **⚙️ Easy Configuration:**
@@ -93,7 +93,7 @@ We continuously improve PhishGuard Lite with:
 • **Built-in Help**: Comprehensive options page with configuration
 • **Community Support**: Join our user community for tips and help
 • **Regular Updates**: Continuous improvements based on user feedback
-• **Open Source**: Transparent development process
+• **Release Notes**: Each update's changes are listed in plain language
 
 **🛡️ Stay Safe Online:**
 Don't let phishing attacks compromise your security. Install PhishGuard Lite today and browse the web with confidence, knowing you have intelligent protection against the latest threats.
@@ -157,9 +157,9 @@ None
 
 ### **Homepage URL** (2,048 characters max)
 ```
-https://github.com/your-username/phishguard-lite
+https://cyphersway.com/phishguard/
 
-PhishGuard Lite is an open-source browser extension designed to protect users from phishing attacks through intelligent local analysis and one-click reporting. Our mission is to make the web safer for everyone by providing reliable, privacy-focused phishing detection that works seamlessly in the background while you browse.
+PhishGuard Lite is a free browser extension designed to protect users from phishing attacks through intelligent local analysis and one-click reporting. Our mission is to make the web safer for everyone by providing reliable, privacy-focused phishing detection that works seamlessly in the background while you browse.
 
 Key Features:
 • Real-time phishing detection using local heuristics
@@ -174,7 +174,9 @@ Perfect for online banking, e-commerce, social media, and general web browsing. 
 
 ### **Support URL** (2,048 characters max)
 ```
-https://github.com/your-username/phishguard-lite/issues
+https://cyphersway.com/phishguard/
+
+Support email: contact@cyphersway.com
 
 Get help and support for PhishGuard Lite through our comprehensive support channels:
 
@@ -252,7 +254,7 @@ Visibility: ON
 - Local processing (no data sent to servers)
 - Advanced heuristics-based detection
 - One-click community reporting
-- Open-source transparency
+- Plain-language reasons for every warning
 - Lightweight performance impact
 
 ## 🚀 **Submission Checklist**

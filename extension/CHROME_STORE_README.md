@@ -73,8 +73,8 @@ phishguard-lite-chrome-store.zip
 ```
 
 ### Permissions Required
-- **storage**: Save user preferences and settings
-- **Host Permissions**: Access to Gmail, LinkedIn, Outlook, and general web browsing
+- **storage**: Save user settings (detection on or off, minimum score, optional organisation key, reporting on or off)
+- **Host permissions**: Gmail, the four Outlook on the web addresses and LinkedIn, where links are checked, plus the PhishGuard report service (`phishguard.cyphersway.com`), used only when the user clicks Report
 
 ## 🌐 Supported Platforms
 
@@ -83,9 +83,8 @@ phishguard-lite-chrome-store.zip
 - ✅ Outlook on the web (outlook.office.com, outlook.office365.com, outlook.live.com, outlook.cloud.microsoft)
 - ✅ LinkedIn (linkedin.com)
 
-### General Web Browsing
-- ✅ All HTTPS websites
-- ✅ Secure browsing with CSP compliance
+### Other websites
+- Not scanned. The extension runs only on the sites listed above.
 
 ## 🔒 Security & Privacy
 
